@@ -4,50 +4,9 @@
 /*
  * HeroUI Theme Customization
  * Add this to your global.css after importing @heroui/styles
- * Only includes base variables from variables.css
+ * Only includes variables users need to customize
  * @see https://heroui.com/docs/react/getting-started/theming
  */
-
-/* ── Shared animations ────────────────────────────────────────────────────── */
-@keyframes wap-in {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0px);  }
-}
-@keyframes wap-pulse-scale {
-  0%, 100% { transform: scale(1);    opacity: 1;   }
-  50%       { transform: scale(0.85); opacity: 0.5; }
-}
-.wap-in           { animation: wap-in           0.45s ease-out both; }
-.wap-pulse-accent { animation: wap-pulse-scale  1.4s ease-in-out infinite; }
-
-/* ── Login screen ─────────────────────────────────────────────────────────── */
-@keyframes wap-rise {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: translateY(0);    }
-}
-@keyframes wap-orb {
-  0%, 100% { transform: scale(1)    translate(0, 0);       }
-  33%      { transform: scale(1.14) translate(22px, -18px); }
-  66%      { transform: scale(0.92) translate(-14px, 14px); }
-}
-@keyframes wap-orb-alt {
-  0%, 100% { transform: scale(1)    translate(0, 0);        }
-  33%      { transform: scale(0.92) translate(-18px, 14px);  }
-  66%      { transform: scale(1.1)  translate(16px, -12px);  }
-}
-.wap-rise    { animation: wap-rise    0.5s ease-out both;         }
-.wap-orb     { animation: wap-orb     9s  ease-in-out infinite;   }
-.wap-orb-alt { animation: wap-orb-alt 11s ease-in-out infinite;   }
-
-/* Service cards lift toward the accent on hover */
-.wap-card { transition: border-color 0.18s ease, transform 0.18s ease; }
-.wap-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-.wap-card:active { transform: translateY(0); }
-
-@media (prefers-reduced-motion: reduce) {
-  .wap-rise, .wap-orb, .wap-orb-alt, .wap-in, .wap-pulse-accent { animation: none; }
-  .wap-card, .wap-card:hover { transition: none; transform: none; }
-}
 
 :root,
 .light,
@@ -55,78 +14,333 @@
 [data-theme="light"],
 [data-theme="default"] {
   /* Theme Colors (Light Mode) */
-  --accent: oklch(76.97% 0.2124 144.45);
-  --accent-foreground: oklch(15% 0.0300 144.45);
-  --background: oklch(97.02% 0.0020 144.45);
-  --border: oklch(90.00% 0.0020 144.45);
-  --danger: oklch(65.32% 0.2337 12.61);
+  --accent: oklch(62.04% 0.1950 244.55);
+  --accent-foreground: oklch(99.11% 0 0);
+  --background: oklch(97.02% 0.0000 244.55);
+  --border: oklch(90.00% 0.0000 244.55);
+  --danger: oklch(65.32% 0.2328 24.63);
   --danger-foreground: oklch(99.11% 0 0);
-  --default: oklch(94.00% 0.0020 144.45);
-  --default-foreground: oklch(21.03% 0.0059 144.45);
-  --field-background: oklch(100.00% 0.0010 144.45);
-  --field-foreground: oklch(21.03% 0.0020 144.45);
-  --field-placeholder: oklch(55.17% 0.0040 144.45);
-  --focus: oklch(76.97% 0.2124 144.45);
-  --foreground: oklch(21.03% 0.0020 144.45);
-  --muted: oklch(55.17% 0.0040 144.45);
-  --overlay: oklch(100.00% 0.0006 144.45);
-  --overlay-foreground: oklch(21.03% 0.0020 144.45);
-  --scrollbar: oklch(87.10% 0.0020 144.45);
-  --segment: oklch(100.00% 0.0020 144.45);
-  --segment-foreground: oklch(21.03% 0.0020 144.45);
-  --separator: oklch(92.00% 0.0020 144.45);
-  --success: oklch(73.29% 0.1943 137.68);
-  --success-foreground: oklch(21.03% 0.0059 137.68);
-  --surface: oklch(100.00% 0.0010 144.45);
-  --surface-foreground: oklch(21.03% 0.0020 144.45);
-  --surface-secondary: oklch(95.24% 0.0016 144.45);
-  --surface-secondary-foreground: oklch(21.03% 0.0020 144.45);
-  --surface-tertiary: oklch(93.73% 0.0016 144.45);
-  --surface-tertiary-foreground: oklch(21.03% 0.0020 144.45);
-  --warning: oklch(78.19% 0.1591 59.20);
-  --warning-foreground: oklch(21.03% 0.0059 59.20);
+  --default: oklch(94.00% 0.0000 244.55);
+  --default-foreground: oklch(21.03% 0.0059 244.55);
+  --field-background: oklch(100.00% 0.0000 244.55);
+  --field-border: transparent;
+  --field-foreground: oklch(21.03% 0.0000 244.55);
+  --field-placeholder: oklch(55.17% 0.0000 244.55);
+  --focus: oklch(62.04% 0.1950 244.55);
+  --foreground: oklch(21.03% 0.0000 244.55);
+  --muted: oklch(55.17% 0.0000 244.55);
+  --overlay: oklch(100.00% 0.0000 244.55);
+  --overlay-foreground: oklch(21.03% 0.0000 244.55);
+  --scrollbar: oklch(87.10% 0.0000 244.55);
+  --segment: oklch(100.00% 0.0000 244.55);
+  --segment-foreground: oklch(21.03% 0.0000 244.55);
+  --separator: oklch(92.00% 0.0000 244.55);
+  --success: oklch(73.29% 0.1935 149.70);
+  --success-foreground: oklch(21.03% 0.0059 149.70);
+  --surface: oklch(100.00% 0.0000 244.55);
+  --surface-foreground: oklch(21.03% 0.0000 244.55);
+  --surface-secondary: oklch(95.24% 0.0000 244.55);
+  --surface-secondary-foreground: oklch(21.03% 0.0000 244.55);
+  --surface-tertiary: oklch(93.73% 0.0000 244.55);
+  --surface-tertiary-foreground: oklch(21.03% 0.0000 244.55);
+  --warning: oklch(78.19% 0.1585 71.22);
+  --warning-foreground: oklch(21.03% 0.0059 71.22);
 
   /* Border Radius */
   --radius: 0.25rem;
-  --field-radius: 0.25rem;
+  --field-radius: 0.5rem;
 
   /* Font Family */
-  /* Make sure to load Inter font in your app */
-  --font-sans: var(--font-inter);
+  /* Make sure to load Geist font in your app */
+  --font-sans: var(--font-geist);
 }
 
 .dark,
 [data-theme="dark"] {
   color-scheme: dark;
   /* Theme Colors (Dark Mode) */
-  --accent: oklch(76.97% 0.2124 144.45);
-  --accent-foreground: oklch(15% 0.0300 144.45);
-  --background: oklch(12.00% 0.0020 144.45);
-  --border: oklch(28.00% 0.0020 144.45);
-  --danger: oklch(59.40% 0.1975 11.50);
+  --accent: oklch(62.04% 0.1950 244.55);
+  --accent-foreground: oklch(99.11% 0 0);
+  --background: oklch(12.00% 0.0000 244.55);
+  --border: oklch(28.00% 0.0000 244.55);
+  --danger: oklch(59.40% 0.1967 23.52);
   --danger-foreground: oklch(99.11% 0 0);
-  --default: oklch(27.40% 0.0020 144.45);
+  --default: oklch(27.40% 0.0000 244.55);
   --default-foreground: oklch(99.11% 0 0);
-  --field-background: oklch(21.03% 0.0040 144.45);
-  --field-foreground: oklch(99.11% 0.0020 144.45);
-  --field-placeholder: oklch(70.50% 0.0040 144.45);
-  --focus: oklch(76.97% 0.2124 144.45);
-  --foreground: oklch(99.11% 0.0020 144.45);
-  --muted: oklch(70.50% 0.0040 144.45);
-  --overlay: oklch(21.03% 0.0040 144.45);
-  --overlay-foreground: oklch(99.11% 0.0020 144.45);
-  --scrollbar: oklch(70.50% 0.0020 144.45);
-  --segment: oklch(39.64% 0.0020 144.45);
-  --segment-foreground: oklch(99.11% 0.0020 144.45);
-  --separator: oklch(25.00% 0.0020 144.45);
-  --success: oklch(73.29% 0.1943 137.68);
-  --success-foreground: oklch(21.03% 0.0059 137.68);
-  --surface: oklch(21.03% 0.0040 144.45);
-  --surface-foreground: oklch(99.11% 0.0020 144.45);
-  --surface-secondary: oklch(25.70% 0.0030 144.45);
-  --surface-secondary-foreground: oklch(99.11% 0.0020 144.45);
-  --surface-tertiary: oklch(27.21% 0.0030 144.45);
-  --surface-tertiary-foreground: oklch(99.11% 0.0020 144.45);
-  --warning: oklch(82.03% 0.1394 63.21);
-  --warning-foreground: oklch(21.03% 0.0059 63.21);
+  --field-background: oklch(21.03% 0.0000 244.55);
+  --field-border: transparent;
+  --field-foreground: oklch(99.11% 0.0000 244.55);
+  --field-placeholder: oklch(70.50% 0.0000 244.55);
+  --focus: oklch(62.04% 0.1950 244.55);
+  --foreground: oklch(99.11% 0.0000 244.55);
+  --muted: oklch(70.50% 0.0000 244.55);
+  --overlay: oklch(21.03% 0.0000 244.55);
+  --overlay-foreground: oklch(99.11% 0.0000 244.55);
+  --scrollbar: oklch(70.50% 0.0000 244.55);
+  --segment: oklch(39.64% 0.0000 244.55);
+  --segment-foreground: oklch(99.11% 0.0000 244.55);
+  --separator: oklch(25.00% 0.0000 244.55);
+  --success: oklch(73.29% 0.1935 149.70);
+  --success-foreground: oklch(21.03% 0.0059 149.70);
+  --surface: oklch(21.03% 0.0000 244.55);
+  --surface-foreground: oklch(99.11% 0.0000 244.55);
+  --surface-secondary: oklch(25.70% 0.0000 244.55);
+  --surface-secondary-foreground: oklch(99.11% 0.0000 244.55);
+  --surface-tertiary: oklch(27.21% 0.0000 244.55);
+  --surface-tertiary-foreground: oklch(99.11% 0.0000 244.55);
+  --warning: oklch(82.03% 0.1388 75.23);
+  --warning-foreground: oklch(21.03% 0.0059 75.23);
+}
+
+/* ── Animations ───────────────────────────────────────────────────────────── */
+@keyframes wap-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes wap-pulse-scale {
+  0%, 100% { transform: scale(1);    opacity: 1;   }
+  50%      { transform: scale(0.85); opacity: 0.5; }
+}
+@keyframes wap-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes wap-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+.wap-in           { animation: wap-in          0.4s ease-out both;        }
+.wap-rise         { animation: wap-rise        0.5s ease-out both;        }
+.wap-pulse-accent { animation: wap-pulse-scale 1.4s ease-in-out infinite; }
+
+/* Loading placeholder: a sheen travelling across a neutral block */
+.wap-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--default) 25%,
+    color-mix(in oklch, var(--default) 50%, var(--surface)) 50%,
+    var(--default) 75%
+  );
+  background-size: 200% 100%;
+  animation: wap-shimmer 1.4s linear infinite;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────────────── */
+/*
+ * One source of truth: `--sb-w` is the sidebar's width AND the shell's left
+ * margin, so the two can never disagree. Each breakpoint sets it once.
+ *
+ * Nothing about the layout is set inline in JSX — an inline width or margin
+ * outranks every media query, which is exactly how the earlier version ended up
+ * overlapping the page.
+ */
+/*
+ * `--sb-w` is the sidebar's width AND the shell's left margin, so the two can
+ * never disagree. It is declared on :root and only ever overridden there.
+ *
+ * Nothing about the layout is set inline in JSX — an inline width or margin
+ * outranks every media query, which is how an earlier version ended up
+ * overlapping the page.
+ */
+:root { --sb-w: 0px; }                                   /* phones: overlay drawer */
+@media (min-width: 768px) { :root { --sb-w: 250px; } }   /* md and up: pinned open */
+
+.wap-sidebar {
+  width: 280px;              /* drawer width on phones */
+  transform: translateX(-100%);
+}
+.wap-sidebar[data-open] { transform: translateX(0); }
+
+.wap-shell { margin-left: var(--sb-w); }
+
+@media (min-width: 768px) {
+  .wap-sidebar {
+    width: var(--sb-w);
+    transform: none;         /* pinned open from md up — never collapses */
+  }
+}
+
+
+/* ── Mail body ────────────────────────────────────────────────────────────── */
+/*
+ * Sender HTML is sanitized server-side (no scripts, handlers or javascript:
+ * URLs) but keeps its own CSS. These rules give it sane defaults and stop wide
+ * tables or images from breaking the layout.
+ */
+.wap-mail {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+.wap-mail p { margin: 0 0 0.75em; }
+.wap-mail h1, .wap-mail h2, .wap-mail h3,
+.wap-mail h4, .wap-mail h5, .wap-mail h6 {
+  margin: 1.2em 0 0.5em;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.wap-mail h1 { font-size: 1.4em; }
+.wap-mail h2 { font-size: 1.25em; }
+.wap-mail h3 { font-size: 1.1em; }
+.wap-mail ul, .wap-mail ol { margin: 0 0 0.75em; padding-left: 1.5em; }
+.wap-mail ul { list-style: disc; }
+.wap-mail ol { list-style: decimal; }
+.wap-mail li { margin: 0.2em 0; }
+.wap-mail a { color: var(--accent); text-decoration: underline; }
+.wap-mail strong, .wap-mail b { font-weight: 700; }
+.wap-mail em, .wap-mail i { font-style: italic; }
+.wap-mail del { text-decoration: line-through; opacity: 0.7; }
+.wap-mail hr { margin: 1.2em 0; border: 0; border-top: 1px solid var(--border); }
+.wap-mail blockquote {
+  margin: 0 0 0.75em;
+  padding: 0.1em 0 0.1em 0.9em;
+  border-left: 3px solid var(--border);
+  color: var(--muted);
+}
+.wap-mail code {
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--surface-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+}
+.wap-mail pre {
+  margin: 0 0 0.75em;
+  padding: 0.8em;
+  border-radius: 8px;
+  background: var(--surface-secondary);
+  overflow-x: auto;
+}
+.wap-mail img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+/* Senders often set fixed pixel widths; let the table scroll instead of the page */
+.wap-mail table {
+  max-width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 0.75em;
+  display: block;
+  overflow-x: auto;
+}
+.wap-mail th, .wap-mail td {
+  padding: 0.4em 0.6em;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+.wap-mail th { background: var(--surface-secondary); font-weight: 600; }
+/* Mail is often authored for a white background — keep dark mode readable */
+:root[data-theme="dark"] .wap-mail [style*="color:#fff"],
+:root[data-theme="dark"] .wap-mail [style*="color: #fff"],
+:root[data-theme="dark"] .wap-mail [style*="color:white"] {
+  color: var(--foreground) !important;
+}
+
+/* Timeline "now" marker: a quiet pulse so the eye finds the current time */
+@keyframes wap-now-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--danger) 55%, transparent); }
+  70%      { box-shadow: 0 0 0 7px transparent; }
+}
+.wap-now-dot { animation: wap-now-pulse 2.2s ease-out infinite; }
+
+/* Login screen: service rows lean toward the accent on hover */
+.wap-service        { transition: border-color 0.18s ease, transform 0.18s ease; }
+.wap-service:hover  { border-color: var(--accent); transform: translateY(-2px);  }
+.wap-service:active { transform: translateY(0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .wap-in, .wap-rise, .wap-pulse-accent, .wap-shimmer { animation: none; }
+  .wap-service, .wap-service:hover { transition: none; transform: none; }
+}/*
+ * HeroUI Theme Customization
+ * Add this to your global.css after importing @heroui/styles
+ * Only includes variables users need to customize
+ * @see https://heroui.com/docs/react/getting-started/theming
+ */
+
+:root,
+.light,
+.default,
+[data-theme="light"],
+[data-theme="default"] {
+  /* Theme Colors (Light Mode) */
+  --accent: oklch(62.04% 0.1950 244.55);
+  --accent-foreground: oklch(99.11% 0 0);
+  --background: oklch(97.02% 0.0000 244.55);
+  --border: oklch(90.00% 0.0000 244.55);
+  --danger: oklch(65.32% 0.2328 24.63);
+  --danger-foreground: oklch(99.11% 0 0);
+  --default: oklch(94.00% 0.0000 244.55);
+  --default-foreground: oklch(21.03% 0.0059 244.55);
+  --field-background: oklch(100.00% 0.0000 244.55);
+  --field-border: transparent;
+  --field-foreground: oklch(21.03% 0.0000 244.55);
+  --field-placeholder: oklch(55.17% 0.0000 244.55);
+  --focus: oklch(62.04% 0.1950 244.55);
+  --foreground: oklch(21.03% 0.0000 244.55);
+  --muted: oklch(55.17% 0.0000 244.55);
+  --overlay: oklch(100.00% 0.0000 244.55);
+  --overlay-foreground: oklch(21.03% 0.0000 244.55);
+  --scrollbar: oklch(87.10% 0.0000 244.55);
+  --segment: oklch(100.00% 0.0000 244.55);
+  --segment-foreground: oklch(21.03% 0.0000 244.55);
+  --separator: oklch(92.00% 0.0000 244.55);
+  --success: oklch(73.29% 0.1935 149.70);
+  --success-foreground: oklch(21.03% 0.0059 149.70);
+  --surface: oklch(100.00% 0.0000 244.55);
+  --surface-foreground: oklch(21.03% 0.0000 244.55);
+  --surface-secondary: oklch(95.24% 0.0000 244.55);
+  --surface-secondary-foreground: oklch(21.03% 0.0000 244.55);
+  --surface-tertiary: oklch(93.73% 0.0000 244.55);
+  --surface-tertiary-foreground: oklch(21.03% 0.0000 244.55);
+  --warning: oklch(78.19% 0.1585 71.22);
+  --warning-foreground: oklch(21.03% 0.0059 71.22);
+
+  /* Border Radius */
+  --radius: 0.25rem;
+  --field-radius: 0.5rem;
+
+  /* Font Family */
+  /* Make sure to load Geist font in your app */
+  --font-sans: var(--font-geist);
+}
+
+.dark,
+[data-theme="dark"] {
+  color-scheme: dark;
+  /* Theme Colors (Dark Mode) */
+  --accent: oklch(62.04% 0.1950 244.55);
+  --accent-foreground: oklch(99.11% 0 0);
+  --background: oklch(12.00% 0.0000 244.55);
+  --border: oklch(28.00% 0.0000 244.55);
+  --danger: oklch(59.40% 0.1967 23.52);
+  --danger-foreground: oklch(99.11% 0 0);
+  --default: oklch(27.40% 0.0000 244.55);
+  --default-foreground: oklch(99.11% 0 0);
+  --field-background: oklch(21.03% 0.0000 244.55);
+  --field-border: transparent;
+  --field-foreground: oklch(99.11% 0.0000 244.55);
+  --field-placeholder: oklch(70.50% 0.0000 244.55);
+  --focus: oklch(62.04% 0.1950 244.55);
+  --foreground: oklch(99.11% 0.0000 244.55);
+  --muted: oklch(70.50% 0.0000 244.55);
+  --overlay: oklch(21.03% 0.0000 244.55);
+  --overlay-foreground: oklch(99.11% 0.0000 244.55);
+  --scrollbar: oklch(70.50% 0.0000 244.55);
+  --segment: oklch(39.64% 0.0000 244.55);
+  --segment-foreground: oklch(99.11% 0.0000 244.55);
+  --separator: oklch(25.00% 0.0000 244.55);
+  --success: oklch(73.29% 0.1935 149.70);
+  --success-foreground: oklch(21.03% 0.0059 149.70);
+  --surface: oklch(21.03% 0.0000 244.55);
+  --surface-foreground: oklch(99.11% 0.0000 244.55);
+  --surface-secondary: oklch(25.70% 0.0000 244.55);
+  --surface-secondary-foreground: oklch(99.11% 0.0000 244.55);
+  --surface-tertiary: oklch(27.21% 0.0000 244.55);
+  --surface-tertiary-foreground: oklch(99.11% 0.0000 244.55);
+  --warning: oklch(82.03% 0.1388 75.23);
+  --warning-foreground: oklch(21.03% 0.0059 75.23);
 }

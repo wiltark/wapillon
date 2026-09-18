@@ -40,12 +40,17 @@ async function handler(req: NextRequest): Promise<NextResponse> {
         edToken: result.token,
         edAccountId: result.accountId,
         edAccountType: result.accountType,
+        role: result.role,
+        children: result.children,
       });
 
       const response = NextResponse.json({
         id: session.id,
         service: session.service,
         student: session.student,
+        role: session.role ?? "student",
+        children: session.children ?? [],
+        activeChildId: session.activeChildId,
       });
       response.cookies.set("session_id", session.id, {
         httpOnly: true,

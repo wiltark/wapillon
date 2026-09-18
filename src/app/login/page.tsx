@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   Alert,
   Button,
-  Card,
   Chip,
   InputGroup,
   Label,
@@ -28,7 +27,7 @@ interface TwoFactorState {
   twoFAToken: string;
 }
 
-/** The login flow is a small state machine: pick a service → enter credentials → maybe answer 2FA. */
+/** Three screens, one at a time: pick a service → sign in → answer the security question. */
 type Step =
   | { name: "service" }
   | { name: "credentials"; service: Service }
@@ -36,18 +35,18 @@ type Step =
 
 const SERVICES: Record<
   Service,
-  { name: string; logo: string; tagline: string; features: string[] }
+  { name: string; logo: string; hint: string; features: string[] }
 > = {
   ecoledirecte: {
     name: "École Directe",
     logo: "/ecoledirecte.svg",
-    tagline: "Identifiants de l'établissement",
+    hint: "Identifiants de l'établissement",
     features: ["Relevé de notes", "Vie scolaire", "Actualités"],
   },
   pronote: {
     name: "Pronote",
     logo: "/pronote.svg",
-    tagline: "Espace élève",
+    hint: "Espace élève",
     features: ["Emploi du temps", "Cahier de textes", "Compétences"],
   },
 };
@@ -135,165 +134,62 @@ export default function LoginPage() {
     } else {
       setUsername("");
       setPassword("");
+      setPronoteUrl("");
       setStep({ name: "service" });
     }
   };
 
-  const heading =
-    step.name === "twofa"
-      ? { title: "Vérification", sub: "Votre établissement demande une confirmation supplémentaire." }
-      : step.name === "credentials"
-        ? { title: "Connexion", sub: `Entrez vos identifiants ${SERVICES[step.service].name}.` }
-        : { title: "Bienvenue", sub: "Choisissez votre service pour continuer." };
-
   return (
     <div className="min-h-screen flex" style={{ background: "var(--background)" }}>
-      {/* ── Form ─────────────────────────────────────────────────────────── */}
-      <div className="flex flex-1 md:flex-none md:w-[460px] shrink-0 items-center justify-center px-6 py-12 overflow-y-auto">
-        <div className="w-full max-w-[360px] flex flex-col gap-7">
+      {/* ── Left: the form ───────────────────────────────────────────────── */}
+      <div className="flex w-full md:w-[480px] shrink-0 items-center justify-center px-6 py-14 overflow-y-auto">
+        {/* key remounts on step change so each screen replays its entrance */}
+        <div key={step.name} className="wap-rise w-full max-w-[360px] flex flex-col gap-8">
           <Brand />
 
-          <div className="flex flex-col gap-1.5">
-            <Typography type="h2">{heading.title}</Typography>
-            <Typography type="body-sm" color="muted">
-              {heading.sub}
-            </Typography>
-          </div>
-
-          {/* key remounts the panel on step change, replaying the entry animation */}
-          <div key={step.name} className="wap-rise flex flex-col gap-5">
-            {step.name === "service" && (
-              <ServicePicker
-                onSelect={(service) => {
-                  setError(null);
-                  setStep({ name: "credentials", service });
-                }}
-              />
-            )}
-
-            {step.name === "credentials" && (
-              <form onSubmit={submit} className="flex flex-col gap-5">
-                <BackButton onPress={goBack} />
-
-                <div className="flex flex-col gap-4">
-                  {step.service === "pronote" && (
-                    <Field
-                      label="URL de l'établissement"
-                      type="url"
-                      value={pronoteUrl}
-                      onChange={setPronoteUrl}
-                      placeholder="https://0000000a.index-education.net/pronote/"
-                      autoComplete="url"
-                      required
-                    />
-                  )}
-
-                  <Field
-                    label="Identifiant"
-                    type="text"
-                    value={username}
-                    onChange={setUsername}
-                    placeholder="Votre identifiant"
-                    autoComplete="username"
-                    required
-                  />
-
-                  <Field
-                    label="Mot de passe"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={setPassword}
-                    placeholder="Votre mot de passe"
-                    autoComplete="current-password"
-                    required
-                    suffix={
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        isIconOnly
-                        aria-label={
-                          showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"
-                        }
-                        onPress={() => setShowPassword((v) => !v)}
-                      >
-                        <Papicon name={showPassword ? "Unlock" : "Lock"} size={15} />
-                      </Button>
-                    }
-                  />
-                </div>
-
-                {error && <ErrorAlert message={error} />}
-
-                <SubmitButton loading={loading} label="Se connecter" pending="Connexion…" />
-              </form>
-            )}
-
-            {step.name === "twofa" && (
-              <form onSubmit={submit} className="flex flex-col gap-5">
-                <BackButton onPress={goBack} />
-
-                <Card variant="secondary">
-                  <Card.Content className="flex items-start gap-3 py-4">
-                    <Papicon name="Shield" size={18} color="var(--accent)" />
-                    <Typography type="body-sm" className="leading-relaxed">
-                      {step.twoFA.question}
-                    </Typography>
-                  </Card.Content>
-                </Card>
-
-                {step.twoFA.propositions.length > 0 ? (
-                  <RadioGroup
-                    aria-label="Réponse à la question de sécurité"
-                    value={answer.display}
-                    onChange={(value) => {
-                      const i = step.twoFA.propositions.indexOf(value);
-                      setAnswer({ display: value, raw: step.twoFA.rawPropositions[i] ?? value });
-                    }}
-                    className="flex flex-col gap-2 max-h-[280px] overflow-y-auto"
-                  >
-                    {step.twoFA.propositions.map((proposition, i) => (
-                      <Radio key={i} value={proposition}>
-                        {proposition}
-                      </Radio>
-                    ))}
-                  </RadioGroup>
-                ) : (
-                  <Field
-                    label="Votre réponse"
-                    type="text"
-                    value={answer.display}
-                    onChange={(v) => setAnswer({ display: v, raw: v })}
-                    placeholder="Tapez votre réponse…"
-                    required
-                    autoFocus
-                  />
-                )}
-
-                {error && <ErrorAlert message={error} />}
-
-                <SubmitButton
-                  loading={loading}
-                  label="Confirmer"
-                  pending="Vérification…"
-                  disabled={!answer.display.trim()}
-                />
-              </form>
-            )}
-          </div>
-
           {step.name === "service" && (
-            <>
-              <Separator />
-              <Typography type="body-xs" color="muted">
-                Vos identifiants ne sont jamais stockés — seul un jeton sécurisé est conservé.
-              </Typography>
-            </>
+            <ServiceStep
+              onSelect={(service) => {
+                setError(null);
+                setStep({ name: "credentials", service });
+              }}
+            />
+          )}
+
+          {step.name === "credentials" && (
+            <CredentialsStep
+              service={step.service}
+              username={username}
+              password={password}
+              pronoteUrl={pronoteUrl}
+              showPassword={showPassword}
+              loading={loading}
+              error={error}
+              onUsername={setUsername}
+              onPassword={setPassword}
+              onPronoteUrl={setPronoteUrl}
+              onTogglePassword={() => setShowPassword((v) => !v)}
+              onBack={goBack}
+              onSubmit={submit}
+            />
+          )}
+
+          {step.name === "twofa" && (
+            <TwoFactorStep
+              twoFA={step.twoFA}
+              answer={answer}
+              loading={loading}
+              error={error}
+              onAnswer={setAnswer}
+              onBack={goBack}
+              onSubmit={submit}
+            />
           )}
         </div>
       </div>
 
-      {/* ── Brand panel ──────────────────────────────────────────────────── */}
-      <ShowcasePanel step={step} />
+      {/* ── Right: the showcase ──────────────────────────────────────────── */}
+      <Showcase step={step} />
     </div>
   );
 }
@@ -312,36 +208,220 @@ function Brand() {
   );
 }
 
-function ServicePicker({ onSelect }: { onSelect: (s: Service) => void }) {
+/* ── Screen 1 — choose a service ──────────────────────────────────────────── */
+
+function ServiceStep({ onSelect }: { onSelect: (s: Service) => void }) {
   return (
-    <div className="flex flex-col gap-3">
-      {(Object.keys(SERVICES) as Service[]).map((key) => {
-        const service = SERVICES[key];
-        return (
-          <Card
+    <>
+      <Heading title="Bienvenue" subtitle="Choisissez votre service pour continuer." />
+
+      <div className="flex flex-col gap-3">
+        {(Object.keys(SERVICES) as Service[]).map((key) => (
+          <Button
             key={key}
-            variant="default"
-            className="wap-card cursor-pointer transition-all"
-            onClick={() => onSelect(key)}
+            variant="outline"
+            size="lg"
+            fullWidth
+            onPress={() => onSelect(key)}
+            className="wap-service justify-start h-auto py-4"
           >
-            <Card.Content className="flex items-center gap-4 py-4">
-              <div className="h-11 w-11 shrink-0 rounded-xl bg-white flex items-center justify-center overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={service.logo} alt="" className="h-7 w-7 object-contain" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <Typography type="body" className="font-semibold">
-                  {service.name}
-                </Typography>
-                <Typography type="body-xs" color="muted">
-                  {service.tagline}
-                </Typography>
-              </div>
-              <Papicon name="ChevronRight" size={15} color="var(--muted)" />
-            </Card.Content>
-          </Card>
-        );
-      })}
+            <span className="h-8 w-8 shrink-0 rounded-lg bg-white flex items-center justify-center overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={SERVICES[key].logo} alt="" className="h-5 w-5 object-contain" />
+            </span>
+            <span className="flex-1 flex flex-col items-start gap-0.5 min-w-0">
+              <span className="font-semibold">{SERVICES[key].name}</span>
+              <span className="text-xs font-normal opacity-60">{SERVICES[key].hint}</span>
+            </span>
+            <Papicon name="ChevronRight" size={14} />
+          </Button>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <Separator />
+        <Typography type="body-xs" color="muted">
+          Vos identifiants ne sont jamais stockés — seul un jeton sécurisé est conservé.
+        </Typography>
+      </div>
+    </>
+  );
+}
+
+/* ── Screen 2 — credentials ───────────────────────────────────────────────── */
+
+function CredentialsStep({
+  service,
+  username,
+  password,
+  pronoteUrl,
+  showPassword,
+  loading,
+  error,
+  onUsername,
+  onPassword,
+  onPronoteUrl,
+  onTogglePassword,
+  onBack,
+  onSubmit,
+}: {
+  service: Service;
+  username: string;
+  password: string;
+  pronoteUrl: string;
+  showPassword: boolean;
+  loading: boolean;
+  error: string | null;
+  onUsername: (v: string) => void;
+  onPassword: (v: string) => void;
+  onPronoteUrl: (v: string) => void;
+  onTogglePassword: () => void;
+  onBack: () => void;
+  onSubmit: (e: React.FormEvent) => void;
+}) {
+  return (
+    <>
+      <Heading
+        title="Connexion"
+        subtitle={`Entrez vos identifiants ${SERVICES[service].name}.`}
+      />
+
+      <form onSubmit={onSubmit} className="flex flex-col gap-5">
+        {service === "pronote" && (
+          <Field
+            label="URL de l'établissement"
+            type="url"
+            value={pronoteUrl}
+            onChange={onPronoteUrl}
+            placeholder="https://0000000a.index-education.net/pronote/"
+            autoComplete="url"
+            required
+          />
+        )}
+
+        <Field
+          label="Identifiant"
+          type="text"
+          value={username}
+          onChange={onUsername}
+          placeholder="Votre identifiant"
+          autoComplete="username"
+          required
+          autoFocus
+        />
+
+        <Field
+          label="Mot de passe"
+          type={showPassword ? "text" : "password"}
+          value={password}
+          onChange={onPassword}
+          placeholder="Votre mot de passe"
+          autoComplete="current-password"
+          required
+          suffix={
+            <Button
+              isIconOnly
+              variant="ghost"
+              size="sm"
+              aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+              onPress={onTogglePassword}
+            >
+              <Papicon name={showPassword ? "Unlock" : "Lock"} size={15} />
+            </Button>
+          }
+        />
+
+        {error && <ErrorAlert message={error} />}
+
+        <Submit loading={loading} label="Se connecter" pending="Connexion…" />
+        <BackLink onPress={onBack} />
+      </form>
+    </>
+  );
+}
+
+/* ── Screen 3 — security question ─────────────────────────────────────────── */
+
+function TwoFactorStep({
+  twoFA,
+  answer,
+  loading,
+  error,
+  onAnswer,
+  onBack,
+  onSubmit,
+}: {
+  twoFA: TwoFactorState;
+  answer: { display: string; raw: string };
+  loading: boolean;
+  error: string | null;
+  onAnswer: (a: { display: string; raw: string }) => void;
+  onBack: () => void;
+  onSubmit: (e: React.FormEvent) => void;
+}) {
+  return (
+    <>
+      <Heading title="Vérification" subtitle={twoFA.question} />
+
+      <form onSubmit={onSubmit} className="flex flex-col gap-5">
+        {twoFA.propositions.length > 0 ? (
+          <RadioGroup
+            aria-label="Réponse à la question de sécurité"
+            value={answer.display}
+            onChange={(value) => {
+              const i = twoFA.propositions.indexOf(value);
+              onAnswer({ display: value, raw: twoFA.rawPropositions[i] ?? value });
+            }}
+            className="flex flex-col gap-1 max-h-[320px] overflow-y-auto pr-1"
+          >
+            {twoFA.propositions.map((proposition, i) => (
+              // Radio is only the field; Radio.Content is the part that is
+              // actually clickable and selectable.
+              <Radio key={i} value={proposition}>
+                <Radio.Content>
+                  <Radio.Control>
+                    <Radio.Indicator />
+                  </Radio.Control>
+                  <Label>{proposition}</Label>
+                </Radio.Content>
+              </Radio>
+            ))}
+          </RadioGroup>
+        ) : (
+          <Field
+            label="Votre réponse"
+            type="text"
+            value={answer.display}
+            onChange={(v) => onAnswer({ display: v, raw: v })}
+            placeholder="Tapez votre réponse…"
+            required
+            autoFocus
+          />
+        )}
+
+        {error && <ErrorAlert message={error} />}
+
+        <Submit
+          loading={loading}
+          label="Confirmer"
+          pending="Vérification…"
+          disabled={!answer.display.trim()}
+        />
+        <BackLink onPress={onBack} />
+      </form>
+    </>
+  );
+}
+
+/* ── Shared pieces ────────────────────────────────────────────────────────── */
+
+function Heading({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <Typography type="h2">{title}</Typography>
+      <Typography type="body-sm" color="muted">
+        {subtitle}
+      </Typography>
     </div>
   );
 }
@@ -389,15 +469,6 @@ function Field({
   );
 }
 
-function BackButton({ onPress }: { onPress: () => void }) {
-  return (
-    <Button variant="ghost" size="sm" onPress={onPress} className="w-fit gap-1.5">
-      <Papicon name="ArrowLeft" size={13} />
-      Retour
-    </Button>
-  );
-}
-
 function ErrorAlert({ message }: { message: string }) {
   return (
     <Alert status="danger">
@@ -411,7 +482,7 @@ function ErrorAlert({ message }: { message: string }) {
   );
 }
 
-function SubmitButton({
+function Submit({
   loading,
   label,
   pending,
@@ -423,22 +494,29 @@ function SubmitButton({
   disabled?: boolean;
 }) {
   return (
-    <Button
-      type="submit"
-      variant="primary"
-      size="lg"
-      fullWidth
-      isDisabled={loading || disabled}
-      className="gap-2"
-    >
-      {loading && <Spinner size="sm" color="current" />}
-      {loading ? pending : label}
+    <Button type="submit" size="lg" fullWidth isPending={loading} isDisabled={disabled}>
+      {({ isPending }) => (
+        <>
+          {isPending && <Spinner color="current" size="sm" />}
+          {isPending ? pending : label}
+        </>
+      )}
     </Button>
   );
 }
 
-/** Right-hand panel: mirrors the current step so the two halves stay in sync. */
-function ShowcasePanel({ step }: { step: Step }) {
+function BackLink({ onPress }: { onPress: () => void }) {
+  return (
+    <Button variant="ghost" size="sm" onPress={onPress} className="self-center">
+      <Papicon name="ArrowLeft" size={13} />
+      Retour
+    </Button>
+  );
+}
+
+/* ── Right panel ──────────────────────────────────────────────────────────── */
+
+function Showcase({ step }: { step: Step }) {
   const content =
     step.name === "service"
       ? {
@@ -474,50 +552,44 @@ function ShowcasePanel({ step }: { step: Step }) {
     <div
       className="hidden md:flex flex-1 relative items-center justify-center p-14 overflow-hidden"
       style={{
-        background: "oklch(13% 0.01 144)",
+        background: "oklch(15% 0.015 265)",
         backgroundImage: `
-          radial-gradient(ellipse 55% 45% at 72% 28%, oklch(76% 0.21 144 / 0.14) 0%, transparent 70%),
-          radial-gradient(ellipse 45% 55% at 18% 82%, oklch(76% 0.21 144 / 0.08) 0%, transparent 65%)
+          radial-gradient(ellipse 55% 45% at 72% 28%, color-mix(in oklch, var(--accent) 22%, transparent) 0%, transparent 70%),
+          radial-gradient(ellipse 45% 55% at 18% 82%, color-mix(in oklch, var(--accent) 12%, transparent) 0%, transparent 65%)
         `,
       }}
     >
-      <div className="wap-orb absolute -top-24 -right-16 h-[420px] w-[420px] rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle, oklch(76% 0.21 144 / 0.16) 0%, transparent 70%)" }}
-      />
-      <div className="wap-orb-alt absolute -bottom-28 -left-20 h-[360px] w-[360px] rounded-full pointer-events-none"
-        style={{ background: "radial-gradient(circle, oklch(76% 0.21 144 / 0.10) 0%, transparent 70%)" }}
-      />
-
       <div key={step.name} className="relative z-10 flex flex-col gap-8 max-w-[320px]">
         <div
           className="wap-rise h-[76px] w-[76px] rounded-[24px] flex items-center justify-center overflow-hidden"
           style={{
-            background: content.logo ? "white" : "oklch(76% 0.21 144 / 0.14)",
-            border: "1px solid oklch(76% 0.21 144 / 0.25)",
-            boxShadow: "0 0 40px oklch(76% 0.21 144 / 0.18)",
+            background: content.logo
+              ? "white"
+              : "color-mix(in oklch, var(--accent) 18%, transparent)",
+            border: "1px solid color-mix(in oklch, var(--accent) 30%, transparent)",
           }}
         >
           {content.logo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={content.logo} alt="" className="h-11 w-11 object-contain" />
           ) : (
-            <Papicon name={content.icon!} size={34} color="oklch(76% 0.21 144)" />
+            <Papicon name={content.icon!} size={34} color="var(--accent)" />
           )}
         </div>
 
         <div className="wap-rise flex flex-col gap-3" style={{ animationDelay: "0.08s" }}>
           {content.label && (
-            <Chip color="accent" variant="secondary" size="sm" className="w-fit">
+            <Chip color="accent" size="sm" className="w-fit">
               <Chip.Label>{content.label}</Chip.Label>
             </Chip>
           )}
           <h2
             className="text-[2rem] font-bold leading-[1.15] whitespace-pre-line"
-            style={{ color: "oklch(97% 0.005 144)" }}
+            style={{ color: "oklch(98% 0.005 265)" }}
           >
             {content.title}
           </h2>
-          <p className="text-sm leading-relaxed" style={{ color: "oklch(68% 0.01 144)" }}>
+          <p className="text-sm leading-relaxed" style={{ color: "oklch(72% 0.015 265)" }}>
             {content.description}
           </p>
         </div>
@@ -529,13 +601,13 @@ function ShowcasePanel({ step }: { step: Step }) {
               className="wap-rise flex items-center gap-3"
               style={{ animationDelay: `${0.16 + i * 0.07}s` }}
             >
-              <div
+              <span
                 className="h-5 w-5 rounded-full flex items-center justify-center shrink-0"
-                style={{ background: "oklch(76% 0.21 144 / 0.2)" }}
+                style={{ background: "color-mix(in oklch, var(--accent) 25%, transparent)" }}
               >
-                <Papicon name="Check" size={10} color="oklch(76% 0.21 144)" />
-              </div>
-              <span className="text-sm font-medium" style={{ color: "oklch(82% 0.006 144)" }}>
+                <Papicon name="Check" size={10} color="var(--accent)" />
+              </span>
+              <span className="text-sm font-medium" style={{ color: "oklch(85% 0.01 265)" }}>
                 {feature}
               </span>
             </div>

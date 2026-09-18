@@ -1,0 +1,36 @@
+// Wapillon data store.
+//
+// SQLite for now, MySQL once that server is back: switch `provider` to "mysql"
+// and point DATABASE_URL at it. The schema deliberately avoids SQLite-only
+// types so that swap needs no model changes.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Per-user, per-subject appearance overrides for the timetable.
+///
+/// Keyed by the École Directe account id rather than a local user table: there
+/// are no local accounts, the school service is the source of identity.
+model SubjectPref {
+  id        Int      @id @default(autoincrement())
+  /// École Directe account id of the signed-in user.
+  accountId String
+  /// Subject name exactly as the service reports it.
+  subject   String
+  /// Hex colour overriding the auto-assigned one.
+  color     String?
+  /// Image URL shown behind the course card.
+  image     String?
+  /// Short label replacing a long official subject name.
+  alias     String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, subject])
+  @@index([accountId])
+}

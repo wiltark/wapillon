@@ -39,7 +39,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <Sidebar />
-      <div className="min-h-screen pb-16 transition-all duration-300 md:pb-0 md:ml-[72px] lg:ml-[260px]">
+      {/*
+        `.wap-shell` takes its left margin from --sb-w, the same variable that
+        sizes the sidebar, so the two cannot drift apart. No inline margin here:
+        it would outrank the media queries and push the page on phones, where
+        the sidebar is an overlay.
+      */}
+      <div className="wap-shell min-h-screen pb-16 transition-[margin] duration-200 ease-out md:pb-0">
         {children}
       </div>
       <MobileNav />

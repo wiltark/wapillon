@@ -2,28 +2,57 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 import Papicon from "./Papicon";
-import { useState, createContext, useContext, type ReactNode } from "react";
 
-const navigation = [
-  { name: "Accueil", href: "/", icon: "Home" },
-  { name: "Emploi du temps", href: "/timetable", icon: "Calendar" },
-  { name: "Notes", href: "/grades", icon: "Grades" },
-  { name: "Devoirs", href: "/homework", icon: "Tasks" },
-  { name: "Actualités", href: "/news", icon: "Newspaper" },
-  { name: "Vie scolaire", href: "/attendance", icon: "Clock" },
-  { name: "Réglages", href: "/settings", icon: "Gears" },
+import type { AccountRole } from "@/lib/services/types";
+
+interface NavItem {
+  name: string;
+  href: string;
+  icon: string;
+  /** Omit to show for every role. */
+  roles?: AccountRole[];
+}
+
+const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Scolarité",
+    items: [
+      { name: "Accueil", href: "/", icon: "Home" },
+      { name: "Emploi du temps", href: "/timetable", icon: "Calendar" },
+      { name: "Notes", href: "/grades", icon: "Grades", roles: ["student", "parent"] },
+      { name: "Devoirs", href: "/homework", icon: "Tasks", roles: ["student", "parent"] },
+    ],
+  },
+  {
+    label: "Établissement",
+    items: [
+      { name: "Messagerie", href: "/messages", icon: "Envelope" },
+      { name: "Actualités", href: "/news", icon: "Newspaper" },
+      {
+        name: "Vie scolaire",
+        href: "/attendance",
+        icon: "Clock",
+        roles: ["student", "parent"],
+      },
+      { name: "Facturation", href: "/invoices", icon: "Document", roles: ["parent"] },
+    ],
+  },
 ];
 
-// Sidebar context for mobile toggle
-interface SidebarContextType {
+/**
+ * The sidebar is always expanded. `isOpen` is purely the mobile drawer: from md
+ * up the sidebar is pinned and the flag is ignored.
+ */
+interface SidebarContextValue {
   isOpen: boolean;
   toggle: () => void;
   close: () => void;
 }
 
-const SidebarContext = createContext<SidebarContextType>({
+const SidebarContext = createContext<SidebarContextValue>({
   isOpen: false,
   toggle: () => {},
   close: () => {},
@@ -35,6 +64,7 @@ export function useSidebar() {
 
 export function SidebarProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
+
   return (
     <SidebarContext.Provider
       value={{
@@ -50,124 +80,208 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { session, logout } = useAuth();
+  const { session, logout, switchChild } = useAuth();
   const { isOpen, close } = useSidebar();
-  const [collapsed, setCollapsed] = useState(false);
 
   const student = session?.student;
   const initials = student
     ? `${student.firstName?.[0] || ""}${student.lastName?.[0] || ""}`
     : "?";
 
+  const role = session?.role ?? "student";
+  const children = session?.children ?? [];
+
   return (
     <>
-      {/* Mobile overlay backdrop */}
+      {/* Scrim: phones only, where the sidebar floats above the page */}
       {isOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
+        <button
+          type="button"
+          aria-label="Fermer le menu"
           onClick={close}
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
         />
       )}
 
+      {/*
+        Width and position live in globals.css, keyed off `data-open`. Nothing
+        here sets them inline — an inline width outranks every media query and
+        would leave the sidebar overlapping the page.
+      */}
       <aside
-        className={[
-          "fixed top-0 left-0 z-50 flex h-screen flex-col border-r border-border bg-surface transition-all duration-300",
-          "max-md:w-[280px]",
-          isOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full",
-          "md:translate-x-0 md:w-[72px]",
-          collapsed ? "lg:w-[72px]" : "lg:w-[260px]",
-        ].join(" ")}
+        data-open={isOpen || undefined}
+        className="wap-sidebar fixed inset-y-0 left-0 z-50 flex flex-col border-r border-border transition-transform duration-200 ease-out"
+        style={{ background: "var(--surface)" }}
       >
-        {/* Logo row */}
-        <div className="flex h-14 items-center gap-3 border-b border-border px-4">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-            <Papicon name="Butterfly" size={18} />
-          </div>
-          <span className={`text-base font-bold text-foreground md:hidden ${collapsed ? "lg:hidden" : "lg:block"}`}>
-            Wapillon
-          </span>
-          <button
-            onClick={close}
-            className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-default md:hidden"
+        {/* Brand */}
+        <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-border px-3">
+          <span
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+            style={{ background: "var(--accent)" }}
           >
-            <Papicon name="Cross" size={16} />
+            <Papicon name="Butterfly" size={18} color="var(--accent-foreground)" />
+          </span>
+          <span className="text-[15px] font-bold tracking-tight">Wapillon</span>
+          <button
+            type="button"
+            onClick={close}
+            aria-label="Fermer"
+            className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-default/60 md:hidden"
+          >
+            <Papicon name="Cross" size={15} color="var(--muted)" />
           </button>
         </div>
 
-        {/* User card */}
-        <div className={`mx-3 mt-3 ${collapsed ? "lg:hidden" : ""}`}>
-          <div className="flex w-full items-center gap-3 rounded-xl bg-accent/10 p-3 md:hidden lg:flex">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground">
-              {initials}
-            </div>
-            <div className="flex flex-col overflow-hidden">
-              <span className="truncate text-sm font-semibold text-foreground">
-                {student ? `${student.firstName} ${student.lastName}` : "Non connecté"}
-              </span>
-              <span className="truncate text-xs text-muted">
-                {student?.className || ""}
-              </span>
+        {/* Child picker — parent accounts with more than one child */}
+        {role === "parent" && children.length > 1 && (
+          <div className="shrink-0 border-b border-border px-2.5 py-2.5">
+            <p
+              className="mb-1.5 px-1 text-[10px] font-bold uppercase tracking-[0.08em]"
+              style={{ color: "var(--muted)" }}
+            >
+              Enfant
+            </p>
+            <div className="flex flex-col gap-0.5">
+              {children.map((child) => {
+                const active = child.id === session?.activeChildId;
+                return (
+                  <button
+                    key={child.id}
+                    type="button"
+                    onClick={() => switchChild(child.id).catch(() => {})}
+                    className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors ${
+                      active ? "" : "hover:bg-default/60"
+                    }`}
+                    style={
+                      active
+                        ? {
+                            background: "color-mix(in oklch, var(--accent) 14%, transparent)",
+                            color: "var(--accent)",
+                          }
+                        : undefined
+                    }
+                  >
+                    <span
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold"
+                      style={{
+                        background: active ? "var(--accent)" : "var(--surface-secondary)",
+                        color: active ? "var(--accent-foreground)" : "var(--muted)",
+                      }}
+                    >
+                      {child.firstName?.[0] ?? "?"}
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-[12px] font-semibold leading-tight">
+                        {child.firstName}
+                      </span>
+                      <span
+                        className="truncate text-[10px] leading-tight"
+                        style={{ color: active ? "var(--accent)" : "var(--muted)" }}
+                      >
+                        {child.className}
+                      </span>
+                    </span>
+                    {active && <Papicon name="Check" size={11} color="var(--accent)" />}
+                  </button>
+                );
+              })}
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Nav */}
-        <nav className="mt-3 flex flex-1 flex-col gap-0.5 px-3 overflow-y-auto">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href;
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-4">
+          {NAV_GROUPS.map((group, i) => {
+            const items = group.items.filter((item) => !item.roles || item.roles.includes(role));
+            if (items.length === 0) return null;
             return (
-              <Link
-                key={item.name}
-                href={item.href}
-                onClick={close}
-                className={[
-                  "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
-                  isActive ? "bg-accent/10 text-accent" : "text-foreground hover:bg-default",
-                  "md:justify-center md:px-0",
-                  collapsed ? "lg:justify-center lg:px-0" : "lg:justify-start lg:px-3",
-                ].join(" ")}
-                title={item.name}
+            <div key={group.label} className={i > 0 ? "mt-6" : ""}>
+              <p
+                className="mb-2 px-2.5 text-[10px] font-bold uppercase tracking-[0.08em]"
+                style={{ color: "var(--muted)" }}
               >
-                <Papicon
-                  name={item.icon}
-                  size={20}
-                  className={`shrink-0 ${
-                    isActive ? "text-accent" : "text-muted group-hover:text-foreground"
-                  }`}
-                />
-                <span className={`md:hidden ${collapsed ? "lg:hidden" : "lg:inline"}`}>
-                  {item.name}
-                </span>
-              </Link>
+                {group.label}
+              </p>
+              <ul className="flex flex-col gap-0.5">
+                {items.map((item) => {
+                  const active = pathname === item.href;
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        onClick={close}
+                        aria-current={active ? "page" : undefined}
+                        className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13px] font-medium transition-colors ${
+                          active ? "" : "hover:bg-default/60"
+                        }`}
+                        style={
+                          active
+                            ? {
+                                background:
+                                  "color-mix(in oklch, var(--accent) 14%, transparent)",
+                                color: "var(--accent)",
+                              }
+                            : undefined
+                        }
+                      >
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+                          <Papicon
+                            name={item.icon}
+                            size={18}
+                            color={active ? "var(--accent)" : "var(--muted)"}
+                          />
+                        </span>
+                        <span className="truncate">{item.name}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
             );
           })}
         </nav>
 
-        {/* Bottom */}
-        <div className="border-t border-border p-3 space-y-1">
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex w-full items-center justify-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted transition-all hover:bg-default hover:text-foreground"
+        {/* Account */}
+        <div className="shrink-0 border-t border-border p-2.5">
+          <Link
+            href="/settings"
+            onClick={close}
+            className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-default/60"
           >
-            {collapsed ? (
-              <Papicon name="ChevronRight" size={16} />
-            ) : (
-              <>
-                <Papicon name="ChevronLeft" size={16} />
-                <span>Réduire</span>
-              </>
-            )}
-          </button>
+            <span
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+              style={{ background: "var(--accent)", color: "var(--accent-foreground)" }}
+            >
+              {initials}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-[12.5px] font-semibold leading-tight">
+                {student ? `${student.firstName} ${student.lastName}` : "Non connecté"}
+              </span>
+              <span
+                className="truncate text-[11px] leading-tight"
+                style={{ color: "var(--muted)" }}
+              >
+                {student?.className || "—"}
+              </span>
+            </span>
+            <Papicon name="Gears" size={14} color="var(--muted)" />
+          </Link>
+
           <button
-            onClick={() => { close(); logout(); }}
-            className={[
-              "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-danger transition-all hover:bg-danger/10",
-              "md:justify-center",
-              collapsed ? "lg:justify-center" : "lg:justify-start",
-            ].join(" ")}
+            type="button"
+            onClick={() => {
+              close();
+              logout();
+            }}
+            className="mt-0.5 flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-[12.5px] font-medium transition-colors hover:bg-danger/10"
+            style={{ color: "var(--danger)" }}
           >
-            <Papicon name="Logout" size={18} />
-            <span className={`md:hidden ${collapsed ? "lg:hidden" : "lg:inline"}`}>Déconnexion</span>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center">
+              <Papicon name="Logout" size={16} color="var(--danger)" />
+            </span>
+            <span>Déconnexion</span>
           </button>
         </div>
       </aside>

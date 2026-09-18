@@ -1,21 +1,31 @@
 "use client";
 
+import { Alert } from "@heroui/react";
 import Header from "@/components/Header";
 import Papicon from "@/components/Papicon";
-import { useApiData } from "@/lib/auth-context";
 import {
-  type AttendanceEntry,
-  formatDate,
-  formatShortDate,
-} from "@/lib/services/types";
+  Badge,
+  Empty,
+  Gauge,
+  LoadingPanel,
+  Metric,
+  Panel,
+  RowItem,
+  Rows,
+} from "@/components/ui";
+import { useApiData } from "@/lib/auth-context";
+import { type AttendanceEntry, formatDate, formatShortDate } from "@/lib/services/types";
 
 type AttendanceType = "absence" | "late" | "departure" | "punishment";
 
-const typeConfig: Record<AttendanceType, { label: string; icon: string; color: string }> = {
-  absence:    { label: "Absence",         icon: "Cross",  color: "var(--danger)"  },
-  late:       { label: "Retard",          icon: "Clock",  color: "var(--warning)" },
-  departure:  { label: "Départ anticipé", icon: "Logout", color: "var(--accent)"  },
-  punishment: { label: "Punition",        icon: "Bell",   color: "var(--warning)" },
+const TYPES: Record<
+  AttendanceType,
+  { label: string; icon: string; tone: "danger" | "warning" | "accent" }
+> = {
+  absence: { label: "Absence", icon: "Cross", tone: "danger" },
+  late: { label: "Retard", icon: "Clock", tone: "warning" },
+  departure: { label: "Départ anticipé", icon: "Logout", tone: "accent" },
+  punishment: { label: "Punition", icon: "Bell", tone: "warning" },
 };
 
 export default function AttendancePage() {
@@ -24,129 +34,130 @@ export default function AttendancePage() {
   if (loading) {
     return (
       <>
-        <Header title="Vie scolaire" subtitle="Chargement..." />
-        <div className="flex items-center justify-center py-24">
-          <Papicon name="Butterfly" size={32} className="wap-pulse-accent" color="var(--accent)" />
-        </div>
+        <Header title="Vie scolaire" subtitle="Chargement…" />
+        <main className="p-4 space-y-4 sm:p-6">
+          <LoadingPanel rows={6} />
+        </main>
       </>
     );
   }
 
-  const absences    = attendance.filter((a) => a.type === "absence");
-  const lates       = attendance.filter((a) => a.type === "late");
-  const justified   = attendance.filter((a) => a.justified);
+  const absences = attendance.filter((a) => a.type === "absence");
+  const lates = attendance.filter((a) => a.type === "late");
+  const justified = attendance.filter((a) => a.justified);
   const unjustified = attendance.filter((a) => !a.justified);
+
+  const justifiedRatio = attendance.length > 0 ? justified.length / attendance.length : 1;
+
+  const sorted = [...attendance].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
 
   return (
     <>
-      <Header title="Vie scolaire" subtitle="Absences, retards et départs" />
-      <main className="p-4 space-y-6 sm:p-6">
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 wap-in" style={{ animationDelay: "0s" }}>
-          <StatTile value={absences.length}    label="Absences"      color="var(--danger)"  />
-          <StatTile value={lates.length}       label="Retards"       color="var(--warning)" />
-          <StatTile value={justified.length}   label="Justifiés"     color="var(--success)" />
-          <StatTile value={unjustified.length} label="Non justifiés" color="var(--danger)"  />
-        </div>
-
-        {/* Unjustified warning */}
-        {unjustified.length > 0 && (
-          <div
-            className="flex items-center gap-3 rounded-2xl p-4 wap-in"
-            style={{
-              animationDelay: "0.06s",
-              background: "color-mix(in oklch, var(--warning) 10%, transparent)",
-              border: "1px solid color-mix(in oklch, var(--warning) 30%, transparent)",
-            }}
-          >
-            <Papicon name="Info" size={20} color="var(--warning)" className="shrink-0" />
-            <p className="text-sm">
-              Vous avez{" "}
-              <strong>{unjustified.length} événement(s) non justifié(s)</strong>.{" "}
-              Veuillez régulariser votre situation auprès de la vie scolaire.
-            </p>
+      <Header title="Vie scolaire" subtitle={`${attendance.length} événements`} />
+      <main className="p-4 space-y-4 sm:p-6">
+        <Panel>
+          <div className="grid grid-cols-2 gap-5 sm:grid-cols-5 sm:items-center">
+            <Metric
+              value={absences.length.toString()}
+              label="Absences"
+              color={absences.length > 0 ? "var(--danger)" : "var(--success)"}
+            />
+            <Metric
+              value={lates.length.toString()}
+              label="Retards"
+              color={lates.length > 0 ? "var(--warning)" : "var(--success)"}
+            />
+            <Metric value={justified.length.toString()} label="Justifiés" color="var(--success)" />
+            <Metric
+              value={unjustified.length.toString()}
+              label="Non justifiés"
+              color={unjustified.length > 0 ? "var(--danger)" : "var(--success)"}
+            />
+            <div className="col-span-2 sm:col-span-1 flex flex-col gap-1.5">
+              <span
+                className="text-[10px] font-semibold uppercase tracking-wide"
+                style={{ color: "var(--muted)" }}
+              >
+                Taux de justification · {Math.round(justifiedRatio * 100)}%
+              </span>
+              <Gauge
+                value={justifiedRatio}
+                max={1}
+                color={justifiedRatio === 1 ? "var(--success)" : "var(--warning)"}
+                label="Taux de justification"
+              />
+            </div>
           </div>
+        </Panel>
+
+        {unjustified.length > 0 && (
+          <Alert status="warning" className="wap-in" style={{ animationDelay: "0.05s" }}>
+            <Alert.Indicator>
+              <Papicon name="Info" size={16} />
+            </Alert.Indicator>
+            <Alert.Content>
+              <Alert.Description>
+                <strong>{unjustified.length} événement(s) non justifié(s)</strong> — pensez à
+                régulariser votre situation auprès de la vie scolaire.
+              </Alert.Description>
+            </Alert.Content>
+          </Alert>
         )}
 
-        {/* Records */}
-        <div className="wap-in" style={{ animationDelay: "0.1s" }}>
-          <h2 className="text-sm sm:text-base font-bold mb-3">Historique</h2>
-
-          {attendance.length === 0 ? (
-            <div className="rounded-2xl border border-border bg-surface p-12 text-center text-sm text-muted">
-              Aucun événement
-            </div>
+        <Panel title="Historique" meta={`${sorted.length} événements`} flush delay={0.1}>
+          {sorted.length === 0 ? (
+            <Empty icon="Clock">Aucun événement</Empty>
           ) : (
-            <div className="rounded-2xl border border-border bg-surface divide-y divide-border overflow-hidden">
-              {[...attendance]
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .map((record) => {
-                  const config = typeConfig[record.type as AttendanceType] ?? typeConfig.absence;
-                  return (
-                    <div
-                      key={record.id}
-                      className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 hover:bg-default/50 transition-colors"
-                    >
-                      <div
-                        className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl"
-                        style={{ background: `color-mix(in oklch, ${config.color} 12%, transparent)` }}
+            <Rows>
+              {sorted.map((record) => {
+                const cfg = TYPES[record.type as AttendanceType] ?? TYPES.absence;
+                const color = `var(--${cfg.tone})`;
+                return (
+                  <RowItem key={record.id} accent={color}>
+                    <span className="w-[86px] shrink-0">
+                      <span className="block text-[12px] font-semibold capitalize truncate">
+                        {formatShortDate(record.date)}
+                      </span>
+                      <span
+                        className="block text-[11px] tabular-nums"
+                        style={{ color: "var(--muted)" }}
                       >
-                        <Papicon name={config.icon} size={18} color={config.color} />
-                      </div>
+                        {record.startTime}
+                        {record.endTime ? `–${record.endTime}` : ""}
+                      </span>
+                    </span>
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-sm">{config.label}</span>
-                          <span
-                            className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium"
-                            style={
-                              record.justified
-                                ? { background: "color-mix(in oklch, var(--success) 12%, transparent)", color: "var(--success)" }
-                                : { background: "color-mix(in oklch, var(--danger) 12%, transparent)",  color: "var(--danger)"  }
-                            }
-                          >
-                            <Papicon
-                              name={record.justified ? "Check" : "Cross"}
-                              size={10}
-                              color={record.justified ? "var(--success)" : "var(--danger)"}
-                            />
-                            {record.justified ? "Justifié" : "Non justifié"}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-muted mt-0.5 flex-wrap">
-                          <span className="capitalize">{formatDate(record.date)}</span>
-                          <span>•</span>
-                          <span>{record.startTime}{record.endTime ? ` — ${record.endTime}` : ""}</span>
-                          {record.subject && (
-                            <>
-                              <span>•</span>
-                              <span>{record.subject}</span>
-                            </>
-                          )}
-                        </div>
-                        {record.reason && (
-                          <p className="text-xs text-muted mt-1">Motif : {record.reason}</p>
-                        )}
-                      </div>
+                    <span className="flex-1 min-w-0">
+                      <span className="flex items-center gap-1.5">
+                        <Papicon name={cfg.icon} size={12} color={color} />
+                        <span className="text-[12px] font-semibold">{cfg.label}</span>
+                      </span>
+                      <span
+                        className="block mt-0.5 text-[11px] truncate"
+                        style={{ color: "var(--muted)" }}
+                      >
+                        {[
+                          record.subject,
+                          record.reason ? `Motif : ${record.reason}` : null,
+                          formatDate(record.date),
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    </span>
 
-                      <span className="text-xs text-muted shrink-0">{formatShortDate(record.date)}</span>
-                    </div>
-                  );
-                })}
-            </div>
+                    <Badge tone={record.justified ? "success" : "danger"}>
+                      {record.justified ? "Justifié" : "Non justifié"}
+                    </Badge>
+                  </RowItem>
+                );
+              })}
+            </Rows>
           )}
-        </div>
+        </Panel>
       </main>
     </>
-  );
-}
-
-function StatTile({ value, label, color }: { value: number; label: string; color: string }) {
-  return (
-    <div className="rounded-2xl border border-border bg-surface p-4 text-center">
-      <p className="text-2xl sm:text-3xl font-bold" style={{ color }}>{value}</p>
-      <p className="text-xs text-muted mt-1">{label}</p>
-    </div>
   );
 }

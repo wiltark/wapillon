@@ -13,6 +13,9 @@ async function handler(req: NextRequest): Promise<NextResponse> {
     id: session.id,
     service: session.service,
     student: session.student,
+    role: session.role ?? "student",
+    children: session.children ?? [],
+    activeChildId: session.activeChildId,
   });
 }
 

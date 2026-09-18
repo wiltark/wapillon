@@ -1,15 +1,17 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+import { ToggleButton, ToggleButtonGroup } from "@heroui/react";
 import Header from "@/components/Header";
 import Papicon from "@/components/Papicon";
+import { Panel, RowItem, Rows } from "@/components/ui";
 import { useAuth } from "@/lib/auth-context";
-import { useTheme } from "next-themes";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 
 const THEMES = [
-  { value: "light",  icon: "Sun",  label: "Clair"   },
-  { value: "dark",   icon: "Moon", label: "Sombre"  },
+  { value: "light", icon: "Sun", label: "Clair" },
+  { value: "dark", icon: "Moon", label: "Sombre" },
   { value: "system", icon: "Gears", label: "Système" },
 ] as const;
 
@@ -17,14 +19,31 @@ export default function SettingsPage() {
   const { session, logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => setMounted(true), []);
+  // next-themes only knows the resolved theme after hydration: false on the
+  // server, true on the client, without triggering a cascading render.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
-  const student     = session?.student;
-  const initials    = student ? `${student.firstName?.[0] || ""}${student.lastName?.[0] || ""}` : "?";
-  const serviceName = session?.service === "ecoledirecte" ? "École Directe" : session?.service === "pronote" ? "Pronote" : "—";
-  const serviceLogo = session?.service === "ecoledirecte" ? "/ecoledirecte.svg" : session?.service === "pronote" ? "/pronote.svg" : null;
+  const student = session?.student;
+  const initials = student
+    ? `${student.firstName?.[0] || ""}${student.lastName?.[0] || ""}`
+    : "?";
+  const serviceName =
+    session?.service === "ecoledirecte"
+      ? "École Directe"
+      : session?.service === "pronote"
+        ? "Pronote"
+        : "—";
+  const serviceLogo =
+    session?.service === "ecoledirecte"
+      ? "/ecoledirecte.svg"
+      : session?.service === "pronote"
+        ? "/pronote.svg"
+        : null;
 
   const handleLogout = async () => {
     await logout();
@@ -34,147 +53,142 @@ export default function SettingsPage() {
   return (
     <>
       <Header title="Réglages" />
-      <main className="p-4 space-y-6 sm:p-6 max-w-2xl">
+      <main className="p-4 space-y-4 sm:p-6 max-w-3xl">
+        {/* Identity */}
+        <Panel>
+          <div className="flex items-center gap-4">
+            <span
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-[18px] font-bold"
+              style={{ background: "var(--accent)", color: "var(--accent-foreground)" }}
+            >
+              {initials}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[15px] font-bold truncate">
+                {student ? `${student.firstName} ${student.lastName}` : "—"}
+              </p>
+              <p className="text-[12px] truncate" style={{ color: "var(--muted)" }}>
+                {student?.className || "—"} · {student?.school || "—"}
+              </p>
+            </div>
+            <span
+              className="hidden sm:flex items-center gap-2 rounded-xl px-3 py-2 shrink-0"
+              style={{ background: "var(--surface-secondary)" }}
+            >
+              {serviceLogo ? (
+                <span className="h-5 w-5 rounded bg-white flex items-center justify-center overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={serviceLogo} alt="" className="h-3.5 w-3.5 object-contain" />
+                </span>
+              ) : (
+                <Papicon name="Lock" size={14} color="var(--accent)" />
+              )}
+              <span className="text-[12px] font-semibold">{serviceName}</span>
+            </span>
+          </div>
+        </Panel>
 
-        {/* Account */}
-        <section className="wap-in" style={{ animationDelay: "0s" }}>
-          <SectionLabel>Compte</SectionLabel>
-          <div className="rounded-2xl border border-border bg-surface divide-y divide-border overflow-hidden">
+        {/* Theme */}
+        <Panel title="Apparence" delay={0.05}>
+          <ToggleButtonGroup
+            fullWidth
+            selectionMode="single"
+            disallowEmptySelection
+            selectedKeys={mounted && theme ? [theme] : []}
+            onSelectionChange={(keys) => {
+              const [first] = [...keys];
+              if (first) setTheme(String(first));
+            }}
+          >
+            {THEMES.map((t, i) => (
+              <ToggleButton key={t.value} id={t.value}>
+                {i > 0 && <ToggleButtonGroup.Separator />}
+                <Papicon name={t.icon} size={15} />
+                {t.label}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Panel>
 
-            {/* Profile */}
-            <div className="flex items-center gap-4 p-4">
-              <div
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-lg font-bold"
+        {/* Links */}
+        <Panel title="À propos" flush delay={0.1}>
+          <Rows>
+            <RowItem>
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
                 style={{ background: "var(--accent)", color: "var(--accent-foreground)" }}
               >
-                {initials}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold truncate">
-                  {student ? `${student.firstName} ${student.lastName}` : "—"}
-                </p>
-                <p className="text-sm text-muted truncate">{student?.className || "—"}</p>
-                <p className="text-xs text-muted mt-0.5 truncate">{student?.school || "—"}</p>
-              </div>
-            </div>
+                <Papicon name="Butterfly" size={18} />
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-[13px] font-semibold">Wapillon Web</span>
+                <span className="block text-[11px]" style={{ color: "var(--muted)" }}>
+                  Version 1.0.0 — basé sur Papillon
+                </span>
+              </span>
+            </RowItem>
 
-            {/* Service */}
-            <div className="flex items-center gap-3 p-4">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl overflow-hidden"
-                style={{ background: serviceLogo ? "white" : "color-mix(in oklch, var(--accent) 12%, transparent)" }}>
-                {serviceLogo ? (
-                  <img src={serviceLogo} alt={serviceName} className="h-5 w-5 object-contain" />
-                ) : (
-                  <Papicon name="Lock" size={16} color="var(--accent)" />
-                )}
-              </div>
-              <span className="flex-1 text-sm">Service scolaire</span>
-              <span className="text-sm text-muted">{serviceName}</span>
-            </div>
+            <ExternalRow label="Code source" href="https://github.com/PapillonApp/Papillon" />
+            <ExternalRow label="Documentation" href="https://docs.papillon.bzh" />
+            <ExternalRow
+              label="Soutenir Papillon"
+              href="https://ko-fi.com/thepapillonapp"
+              icon="Heart"
+            />
+          </Rows>
+        </Panel>
 
-            {/* Logout */}
-            <button
-              onClick={handleLogout}
-              className="flex w-full items-center gap-3 p-4 hover:bg-default/50 transition-colors"
+        {/* Danger zone */}
+        <Panel flush delay={0.15}>
+          <RowItem onPress={handleLogout}>
+            <span
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+              style={{ background: "color-mix(in oklch, var(--danger) 14%, transparent)" }}
+            >
+              <Papicon name="Logout" size={16} color="var(--danger)" />
+            </span>
+            <span
+              className="flex-1 text-[13px] font-semibold"
               style={{ color: "var(--danger)" }}
             >
-              <div
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-                style={{ background: "color-mix(in oklch, var(--danger) 12%, transparent)" }}
-              >
-                <Papicon name="Logout" size={16} color="var(--danger)" />
-              </div>
-              <span className="flex-1 text-sm text-left font-medium">Se déconnecter</span>
-            </button>
-          </div>
-        </section>
+              Se déconnecter
+            </span>
+            <Papicon name="ChevronRight" size={13} color="var(--danger)" />
+          </RowItem>
+        </Panel>
 
-        {/* Appearance */}
-        <section className="wap-in" style={{ animationDelay: "0.07s" }}>
-          <SectionLabel>Apparence</SectionLabel>
-          <div className="rounded-2xl border border-border bg-surface p-4">
-            <p className="text-sm font-medium mb-3">Thème</p>
-            <div className="flex gap-2">
-              {THEMES.map((t) => {
-                const active = mounted && theme === t.value;
-                return (
-                  <button
-                    key={t.value}
-                    onClick={() => setTheme(t.value)}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium transition-all"
-                    style={
-                      active
-                        ? { background: "var(--accent)", color: "var(--accent-foreground)" }
-                        : { background: "var(--surface-secondary)", color: "var(--foreground)" }
-                    }
-                  >
-                    <Papicon name={t.icon} size={16} />
-                    {t.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* About */}
-        <section className="wap-in" style={{ animationDelay: "0.14s" }}>
-          <SectionLabel>À propos</SectionLabel>
-          <div className="rounded-2xl border border-border bg-surface divide-y divide-border overflow-hidden">
-
-            <div className="flex items-center gap-4 p-4">
-              <div
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-                style={{ background: "var(--accent)", color: "var(--accent-foreground)" }}
-              >
-                <Papicon name="Butterfly" size={22} />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold">Wapillon Web</p>
-                <p className="text-xs text-muted">Version 1.0.0 — Basé sur Papillon</p>
-              </div>
-            </div>
-
-            <ExternalLink icon="ExternalLink" label="Code source"       href="https://github.com/PapillonApp/Papillon" />
-            <ExternalLink icon="ExternalLink" label="Documentation"     href="https://docs.papillon.bzh"                />
-            <ExternalLink icon="Heart"        label="Soutenir Papillon" href="https://ko-fi.com/thepapillonapp"         />
-          </div>
-        </section>
-
-        {/* Footer */}
-        <div className="text-center py-4 wap-in" style={{ animationDelay: "0.2s" }}>
-          <p className="text-xs text-muted">© 2026 Association Papillon & contributeurs</p>
-          <p className="text-xs text-muted mt-1 flex items-center justify-center gap-1">
-            Fait avec <Papicon name="Heart" size={12} color="var(--danger)" /> par des étudiants
-          </p>
-        </div>
+        <p className="text-center text-[11px] py-2" style={{ color: "var(--muted)" }}>
+          © 2026 Association Papillon & contributeurs
+        </p>
       </main>
     </>
   );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-xs font-bold text-muted uppercase tracking-wider mb-3">{children}</p>
-  );
-}
-
-function ExternalLink({ icon, label, href }: { icon: string; label: string; href: string }) {
+function ExternalRow({
+  label,
+  href,
+  icon = "ExternalLink",
+}: {
+  label: string;
+  href: string;
+  icon?: string;
+}) {
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center gap-3 p-4 hover:bg-default/50 transition-colors"
+      className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-default/40"
     >
-      <div
+      <span
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
         style={{ background: "var(--surface-secondary)" }}
       >
-        <Papicon name={icon} size={16} color="var(--muted)" />
-      </div>
-      <span className="flex-1 text-sm">{label}</span>
-      <Papicon name="ExternalLink" size={14} color="var(--muted)" />
+        <Papicon name={icon} size={15} color="var(--muted)" />
+      </span>
+      <span className="flex-1 text-[13px]">{label}</span>
+      <Papicon name="ExternalLink" size={13} color="var(--muted)" />
     </a>
   );
 }

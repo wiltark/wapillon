@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/sessions";
+import { getSession, targetAccountId } from "@/lib/sessions";
 import { getEDHomework, markEDHomeworkDone } from "@/lib/services/ecoledirecte";
 import { getPronoteHomework } from "@/lib/services/pronote";
 import { withLog } from "@/lib/logger";
@@ -14,7 +14,7 @@ async function getHandler(req: NextRequest): Promise<NextResponse> {
 
   try {
     if (session.service === "ecoledirecte" && session.edToken && session.edAccountId) {
-      const { homework, newToken } = await getEDHomework(session.edToken, session.edAccountId);
+      const { homework, newToken } = await getEDHomework(session.edToken, targetAccountId(session));
       session.edToken = newToken;
       return NextResponse.json(homework);
     }
@@ -43,7 +43,7 @@ async function putHandler(req: NextRequest): Promise<NextResponse> {
     if (!id) return NextResponse.json({ error: "ID manquant" }, { status: 400 });
 
     if (session.service === "ecoledirecte" && session.edToken && session.edAccountId) {
-      const { newToken } = await markEDHomeworkDone(session.edToken, session.edAccountId, id, done);
+      const { newToken } = await markEDHomeworkDone(session.edToken, targetAccountId(session), id, done);
       session.edToken = newToken;
       return NextResponse.json({ ok: true });
     }

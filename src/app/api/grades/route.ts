@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/sessions";
+import { getSession, targetAccountId } from "@/lib/sessions";
 import { getEDGrades } from "@/lib/services/ecoledirecte";
 import { getPronoteGrades } from "@/lib/services/pronote";
 import { withLog } from "@/lib/logger";
@@ -14,7 +14,7 @@ async function handler(req: NextRequest): Promise<NextResponse> {
 
   try {
     if (session.service === "ecoledirecte" && session.edToken && session.edAccountId) {
-      const { grades, newToken } = await getEDGrades(session.edToken, session.edAccountId);
+      const { grades, newToken } = await getEDGrades(session.edToken, targetAccountId(session));
       session.edToken = newToken;
       return NextResponse.json(grades);
     }

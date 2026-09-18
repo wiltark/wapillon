@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/sessions";
+import { getSession, targetAccountId } from "@/lib/sessions";
 import { getEDTimetable } from "@/lib/services/ecoledirecte";
 import { getPronoteTimetable } from "@/lib/services/pronote";
 import { withLog } from "@/lib/logger";
@@ -18,7 +18,7 @@ async function handler(req: NextRequest): Promise<NextResponse> {
 
   try {
     if (session.service === "ecoledirecte" && session.edToken && session.edAccountId) {
-      const { entries, newToken } = await getEDTimetable(session.edToken, session.edAccountId, dateStart, dateEnd);
+      const { entries, newToken } = await getEDTimetable(session.edToken, targetAccountId(session), dateStart, dateEnd);
       session.edToken = newToken;
       return NextResponse.json(entries);
     }

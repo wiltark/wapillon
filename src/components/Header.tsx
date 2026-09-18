@@ -1,5 +1,6 @@
 "use client";
 
+import { Button, Typography } from "@heroui/react";
 import Papicon from "./Papicon";
 import { useSidebar } from "./Sidebar";
 
@@ -12,29 +13,41 @@ export default function Header({ title, subtitle }: HeaderProps) {
   const { toggle } = useSidebar();
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-xl sm:px-6">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={toggle}
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-default hover:text-foreground md:hidden"
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-xl sm:px-6">
+      <div className="flex items-center gap-3 min-w-0">
+        <Button
+          isIconOnly
+          variant="ghost"
+          size="sm"
+          aria-label="Ouvrir le menu"
+          onPress={toggle}
+          className="md:hidden"
         >
           <Papicon name="Menu" size={20} />
-        </button>
+        </Button>
         <div className="min-w-0">
-          <h1 className="text-base font-bold text-foreground sm:text-xl truncate">{title}</h1>
+          <Typography type="h4" className="truncate">
+            {title}
+          </Typography>
           {subtitle && (
-            <p className="text-xs text-muted sm:text-sm truncate">{subtitle}</p>
+            <Typography type="body-xs" color="muted" className="truncate">
+              {subtitle}
+            </Typography>
           )}
         </div>
       </div>
-      <div className="flex items-center gap-1 sm:gap-2">
-        <button className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-default hover:text-foreground">
+
+      <div className="flex items-center gap-1">
+        <Button isIconOnly variant="ghost" size="sm" aria-label="Rechercher">
           <Papicon name="Search" size={18} />
-        </button>
-        <button className="relative flex h-9 w-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-default hover:text-foreground">
+        </Button>
+        <Button isIconOnly variant="ghost" size="sm" aria-label="Notifications" className="relative">
           <Papicon name="Bell" size={18} />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-danger" />
-        </button>
+          <span
+            className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full"
+            style={{ background: "var(--danger)" }}
+          />
+        </Button>
       </div>
     </header>
   );

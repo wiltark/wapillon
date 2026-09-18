@@ -2,21 +2,63 @@
 // Compatible with BlocksDirecte format (Wapillon)
 
 import type {
+  AccountRole,
+  ChildInfo,
   StudentInfo,
   TimetableEntry,
   Grade,
   HomeworkEntry,
+  HomeworkDocument,
+  InvoiceEntry,
+  MessageEntry,
+  MessageFolder,
   NewsEntry,
   AttendanceEntry,
 } from "./types";
+import { renderMarkdown, sanitizeMessageHtml } from "../sanitize";
 
-const BASE_URL = "https://api.ecoledirecte.com/v3";
+/**
+ * Routes a remote image through our own proxy, so opening a message does not
+ * disclose the reader's IP to whoever hosts the image.
+ */
+function proxyImageUrl(src: string): string {
+  if (src.startsWith("data:")) return src;
+  const full = src.startsWith("http")
+    ? src
+    : `https://api.ecoledirecte.com${src.startsWith("/") ? "" : "/"}${src}`;
+  return `/api/homework/image?url=${encodeURIComponent(full)}`;
+}
+
+/**
+ * Teachers are served from a different host than families and students. Getting
+ * this wrong returns an auth error rather than a helpful message, so the host is
+ * always derived from the role instead of being hardcoded.
+ */
+const HOSTS = {
+  default: "https://api.ecoledirecte.com/v3",
+  teacher: "https://apip.ecoledirecte.com/v3",
+} as const;
+
 const API_VERSION = "7.8.2";
 const USER_AGENT = `BlocksDirecte/1.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 EDMOBILE v${API_VERSION}`;
 
+/** `typeCompte` as École Directe reports it on the login response. */
+export function roleFromTypeCompte(typeCompte: string): AccountRole {
+  if (typeCompte === "P") return "teacher";
+  // "1" is a family account; "2" appears for some second-guardian logins.
+  if (typeCompte === "1" || typeCompte === "2") return "parent";
+  return "student";
+}
+
+function baseUrlFor(role: AccountRole): string {
+  return role === "teacher" ? HOSTS.teacher : HOSTS.default;
+}
+
 function getHeaders(token?: string): Record<string, string> {
   const h: Record<string, string> = {
-    "Content-Type": "x-www-form-urlencoded",
+    // ED is lenient about the missing "application/" prefix, but the correct
+    // media type is what its own clients send.
+    "Content-Type": "application/x-www-form-urlencoded",
     "User-Agent": USER_AGENT,
   };
   if (token) h["X-Token"] = token;
@@ -27,12 +69,25 @@ function makeBody(data: Record<string, unknown> = {}): string {
   return new URLSearchParams({ data: JSON.stringify(data) }).toString();
 }
 
-async function edFetch(path: string, token: string, body: Record<string, unknown> = {}) {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: "POST",
-    headers: getHeaders(token),
-    body: makeBody(body),
-  });
+async function edFetch(
+  path: string,
+  token: string,
+  body: Record<string, unknown> = {},
+  role: AccountRole = "student"
+) {
+  let res: Response;
+  try {
+    res = await fetch(`${baseUrlFor(role)}${path}`, {
+      method: "POST",
+      headers: getHeaders(token),
+      body: makeBody(body),
+    });
+  } catch (err) {
+    // A transport failure is not an auth problem — say so, rather than letting
+    // the caller report "identifiants incorrects" for a network outage.
+    const cause = err instanceof Error ? err.message : String(err);
+    throw new Error(`Impossible de joindre École Directe (${cause})`);
+  }
 
   const text = await res.text();
   if (!text || !text.trim()) {
@@ -53,11 +108,28 @@ async function edFetch(path: string, token: string, body: Record<string, unknown
   return { data: json.data, token: json.token || token };
 }
 
+/**
+ * Parent accounts address each child through their own id, and ED requires the
+ * token context to be renewed before querying a child other than the default.
+ */
+export async function renewEDToken(
+  token: string,
+  accountId: number
+): Promise<{ newToken: string }> {
+  const { token: newToken } = await edFetch("/renewtoken.awp?verbe=post", token, {
+    idEleve: accountId,
+  });
+  return { newToken };
+}
+
 export interface EDLoginResult {
   student: StudentInfo;
   token: string;
   accountId: number;
   accountType: string;
+  role: AccountRole;
+  /** Parent accounts only: every child this login can see. */
+  children: ChildInfo[];
 }
 
 export interface ED2FAChallenge {
@@ -84,6 +156,27 @@ function extractAccount(account: Record<string, unknown>): StudentInfo {
   };
 }
 
+/**
+ * Children hang off `profile.eleves` on a family account. Each one carries its
+ * own id, which is what every student-scoped call must use — not the parent's.
+ */
+function extractChildren(account: Record<string, unknown>): ChildInfo[] {
+  const profile = account.profile as Record<string, unknown> | undefined;
+  const eleves = profile?.eleves;
+  if (!Array.isArray(eleves)) return [];
+
+  return (eleves as Record<string, unknown>[]).map((child) => {
+    const classe = child.classe as Record<string, string> | undefined;
+    return {
+      id: String(child.id),
+      firstName: (child.prenom as string) || "",
+      lastName: (child.nom as string) || "",
+      className: classe?.libelle || classe?.code || "",
+      school: (child.nomEtablissement as string) || (account.nomEtablissement as string) || "",
+    };
+  });
+}
+
 export async function loginEcoleDirecte(
   username: string,
   password: string,
@@ -97,7 +190,9 @@ export async function loginEcoleDirecte(
     loginPayload.fa = [fa];
   }
 
-  const res = await fetch(`${BASE_URL}/login.awp?v=${API_VERSION}`, {
+  // Login always goes through the family/student host: the response is what
+  // tells us whether this is a teacher, so the host cannot be chosen earlier.
+  const res = await fetch(`${HOSTS.default}/login.awp?v=${API_VERSION}`, {
     method: "POST",
     headers: getHeaders(),
     body: makeBody(loginPayload),
@@ -109,7 +204,7 @@ export async function loginEcoleDirecte(
   // Code 250 = 2FA required
   if (json.code === 250) {
     // Fetch the 2FA question using the 2FA-Token header
-    const questionRes = await fetch(`${BASE_URL}/connexion/doubleauth.awp?verbe=get&v=${API_VERSION}`, {
+    const questionRes = await fetch(`${HOSTS.default}/connexion/doubleauth.awp?verbe=get&v=${API_VERSION}`, {
       method: "POST",
       headers: { ...getHeaders(), "2FA-Token": twoFAToken },
       body: makeBody({}),
@@ -138,11 +233,24 @@ export async function loginEcoleDirecte(
   const account = json.data.accounts?.[0];
   if (!account) throw new Error("Aucun compte trouvé");
 
+  const accountType = account.typeCompte || "E";
+  const role = roleFromTypeCompte(accountType);
+  const children = role === "parent" ? extractChildren(account) : [];
+
+  // A family account's own name is the parent's; the header should show whose
+  // data is on screen, so fall back to the first child when there is one.
+  const student =
+    role === "parent" && children.length > 0
+      ? { ...children[0], id: children[0].id }
+      : extractAccount(account);
+
   return {
-    student: extractAccount(account),
+    student,
     token: json.token,
     accountId: account.id,
-    accountType: account.typeCompte || "E",
+    accountType,
+    role,
+    children,
   };
 }
 
@@ -156,7 +264,7 @@ export async function validateED2FA(
   password: string
 ): Promise<EDLoginResult> {
   // POST the chosen answer to the 2FA endpoint
-  const res = await fetch(`${BASE_URL}/connexion/doubleauth.awp?verbe=post&v=${API_VERSION}`, {
+  const res = await fetch(`${HOSTS.default}/connexion/doubleauth.awp?verbe=post&v=${API_VERSION}`, {
     method: "POST",
     headers: { ...getHeaders(), "2FA-Token": twoFAToken },
     body: makeBody({ choix: answer }),
@@ -499,4 +607,201 @@ function decodeBase64(str: string): string {
   } catch {
     return str;
   }
+}
+
+/* ── Messaging ────────────────────────────────────────────────────────────── */
+
+/**
+ * Mailboxes live under a different segment per role: families and students each
+ * read their own, teachers read theirs from the `apip` host.
+ */
+function messagesPath(role: AccountRole, accountId: number): string {
+  if (role === "teacher") return `/enseignants/${accountId}/messages.awp`;
+  if (role === "parent") return `/familles/${accountId}/messages.awp`;
+  return `/eleves/${accountId}/messages.awp`;
+}
+
+export async function getEDMessages(
+  token: string,
+  accountId: number,
+  role: AccountRole = "student",
+  folderId?: number
+): Promise<{ messages: MessageEntry[]; folders: MessageFolder[]; newToken: string }> {
+  const query = new URLSearchParams({ verbe: "get", orderBy: "date", order: "desc" });
+  if (folderId != null) query.set("idClasseur", String(folderId));
+
+  let data: unknown;
+  let newToken = token;
+  try {
+    ({ data, token: newToken } = await edFetch(
+      `${messagesPath(role, accountId)}?${query.toString()}`,
+      token,
+      { anneeMessages: "" },
+      role
+    ));
+  } catch {
+    // Schools can disable messaging entirely; an empty inbox beats an error page.
+    return { messages: [], folders: [], newToken: token };
+  }
+
+  const payload = data as Record<string, unknown> | undefined;
+  const received = (payload?.messages as Record<string, unknown> | undefined)?.received;
+
+  const folders: MessageFolder[] = Array.isArray(payload?.classeurs)
+    ? (payload.classeurs as Record<string, unknown>[]).map((c) => ({
+        id: Number(c.id),
+        name: String(c.libelle || "Dossier"),
+      }))
+    : [];
+
+  const messages: MessageEntry[] = Array.isArray(received)
+    ? (received as Record<string, unknown>[]).map((m) => {
+        const from = m.from as Record<string, unknown> | undefined;
+        const files = m.files as Record<string, unknown>[] | undefined;
+        return {
+          id: String(m.id),
+          subject: String(m.subject || "(sans objet)"),
+          preview: stripHtml(decodeBase64(String(m.content || ""))).slice(0, 180),
+          from: from
+            ? `${from.prenom ?? ""} ${from.nom ?? ""}`.trim() || String(from.libelle ?? "")
+            : "Expéditeur inconnu",
+          date: String(m.date || ""),
+          read: Boolean(m.read),
+          hasAttachments: Array.isArray(files) && files.length > 0,
+        };
+      })
+    : [];
+
+  return { messages, folders, newToken };
+}
+
+/** Fetches one message's body. ED only sends it on the detail call. */
+export async function getEDMessage(
+  token: string,
+  accountId: number,
+  messageId: string,
+  role: AccountRole = "student"
+): Promise<{ message: MessageEntry | null; newToken: string }> {
+  const base = messagesPath(role, accountId).replace(/\.awp$/, "");
+  const { data, token: newToken } = await edFetch(
+    `${base}/${messageId}.awp?verbe=get&mode=destinataire`,
+    token,
+    {},
+    role
+  );
+
+  const m = data as Record<string, unknown> | undefined;
+  if (!m) return { message: null, newToken };
+
+  const from = m.from as Record<string, unknown> | undefined;
+  const rawFiles = m.files as Record<string, unknown>[] | undefined;
+  const raw = decodeBase64(String(m.content || ""));
+
+  const files: HomeworkDocument[] | undefined = Array.isArray(rawFiles)
+    ? rawFiles.map((f) => ({
+        id: Number(f.id),
+        name: String(f.libelle || f.name || `Fichier ${f.id}`),
+      }))
+    : undefined;
+
+  // Senders write either HTML or plain text; plain text gets the small Markdown
+  // pass so lists and emphasis survive. Both end up sanitized either way.
+  const looksLikeHtml = /<\/?[a-z][\s\S]*>/i.test(raw);
+  const body = looksLikeHtml
+    ? sanitizeMessageHtml(raw, proxyImageUrl)
+    : sanitizeMessageHtml(renderMarkdown(raw), proxyImageUrl);
+
+  return {
+    message: {
+      id: String(m.id ?? messageId),
+      subject: String(m.subject || "(sans objet)"),
+      preview: stripHtml(raw).slice(0, 180),
+      bodyHtml: body,
+      from: from
+        ? `${from.prenom ?? ""} ${from.nom ?? ""}`.trim() || String(from.libelle ?? "")
+        : "Expéditeur inconnu",
+      date: String(m.date || ""),
+      read: true,
+      hasAttachments: Boolean(files?.length),
+      files,
+    },
+    newToken,
+  };
+}
+
+/* ── Invoices (parent accounts) ───────────────────────────────────────────── */
+
+export async function getEDInvoices(
+  token: string,
+  accountId: number
+): Promise<{ invoices: InvoiceEntry[]; newToken: string }> {
+  let data: unknown;
+  let newToken = token;
+  try {
+    ({ data, token: newToken } = await edFetch(
+      `/familles/${accountId}/factures.awp?verbe=get`,
+      token,
+      {},
+      "parent"
+    ));
+  } catch {
+    // Not every school bills through ED.
+    return { invoices: [], newToken: token };
+  }
+
+  const list = Array.isArray(data)
+    ? data
+    : ((data as Record<string, unknown> | undefined)?.factures as unknown[] | undefined) ?? [];
+
+  const invoices: InvoiceEntry[] = (list as Record<string, unknown>[]).map((f) => ({
+    id: String(f.id ?? f.idFacture ?? Math.random()),
+    label: String(f.libelle || f.nom || "Facture"),
+    date: String(f.date || f.dateFacture || ""),
+    amount: parseFloat(String(f.montant ?? f.montantTTC ?? 0).replace(",", ".")) || 0,
+    paid: Boolean(f.solde === 0 || f.paye),
+    documentId: f.idDocument != null ? Number(f.idDocument) : undefined,
+  }));
+
+  return { invoices, newToken };
+}
+
+/* ── Teacher timetable ────────────────────────────────────────────────────── */
+
+/**
+ * Teachers read their schedule from `P/{id}` on the apip host.
+ *
+ * NOTE: written from community API docs and not verified against a real teacher
+ * account — the shape of each entry may need adjusting.
+ */
+export async function getEDTeacherTimetable(
+  token: string,
+  accountId: number,
+  dateStart: string,
+  dateEnd: string
+): Promise<{ entries: TimetableEntry[]; newToken: string }> {
+  const { data, token: newToken } = await edFetch(
+    `/P/${accountId}/emploidutemps.awp?verbe=get`,
+    token,
+    { dateDebut: dateStart, dateFin: dateEnd, avecTrous: false },
+    "teacher"
+  );
+
+  const entries: TimetableEntry[] = [];
+  if (Array.isArray(data)) {
+    for (const item of data as Record<string, unknown>[]) {
+      entries.push({
+        id: String(item.id ?? Math.random()),
+        subject: String(item.matiere || item.text || "Cours"),
+        // For a teacher the useful "who" is the class, not the teacher.
+        teacher: String(item.classe || item.classeLibelle || ""),
+        room: String(item.salle || ""),
+        start: String(item.start_date || item.debut || ""),
+        end: String(item.end_date || item.fin || ""),
+        color: String(item.color || "#3b82f6"),
+        status: item.isAnnule ? "cancelled" : item.isModifie ? "modified" : "normal",
+      });
+    }
+  }
+
+  return { entries, newToken };
 }

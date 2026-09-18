@@ -82,11 +82,65 @@ export interface AttendanceEntry {
   subject?: string;
 }
 
+/**
+ * Which kind of account is signed in.
+ *
+ * École Directe reports this as `typeCompte` on the login response: "E" for a
+ * student, "1" for a family (parent) account, "P" for a teacher. The role
+ * decides both the API host and the URL segment used for every later call.
+ */
+export type AccountRole = "student" | "parent" | "teacher";
+
+/** One child attached to a parent account (from `profile.eleves`). */
+export interface ChildInfo {
+  id: string;
+  firstName: string;
+  lastName: string;
+  className: string;
+  school: string;
+}
+
+export interface MessageFolder {
+  id: number;
+  name: string;
+}
+
+export interface MessageEntry {
+  id: string;
+  subject: string;
+  /** Plain-text preview; the full body is fetched on demand. */
+  preview: string;
+  /** Sanitized HTML body, only present once the message has been opened. */
+  bodyHtml?: string;
+  from: string;
+  to?: string;
+  date: string;
+  read: boolean;
+  hasAttachments: boolean;
+  files?: HomeworkDocument[];
+}
+
+export interface InvoiceEntry {
+  id: string;
+  label: string;
+  date: string;
+  /** In euros. */
+  amount: number;
+  paid: boolean;
+  /** Document id for downloading the PDF, when the school provides one. */
+  documentId?: number;
+}
+
 export interface SessionData {
   id: string;
   service: ServiceType;
   student: StudentInfo;
   token?: string;
+  role?: AccountRole;
+  /** Parent accounts only: the children this account can switch between. */
+  children?: ChildInfo[];
+  /** Parent accounts only: which child's data is currently being shown. */
+  activeChildId?: string;
 }
 
 // Colors assigned to subjects

@@ -1,119 +1,136 @@
 "use client";
 
+import { useState } from "react";
+import { Alert } from "@heroui/react";
 import Header from "@/components/Header";
 import Papicon from "@/components/Papicon";
+import { Badge, Empty, LoadingPanel, Panel, Rows } from "@/components/ui";
 import { useApiData } from "@/lib/auth-context";
-import {
-  type NewsEntry,
-  formatDate,
-  formatShortDate,
-} from "@/lib/services/types";
+import { type NewsEntry, formatDate, formatShortDate } from "@/lib/services/types";
 
 type CategoryKey = "info" | "event" | "urgent" | "menu";
 
-const categoryConfig: Record<CategoryKey, { label: string; icon: string; color: string }> = {
-  info:   { label: "Information", icon: "Info",     color: "var(--accent)"  },
-  event:  { label: "Événement",   icon: "Calendar", color: "var(--accent)"  },
-  urgent: { label: "Urgent",      icon: "Bell",     color: "var(--danger)"  },
-  menu:   { label: "Cantine",     icon: "Cutlery",  color: "var(--success)" },
+const CATEGORIES: Record<
+  CategoryKey,
+  { label: string; icon: string; tone: "accent" | "danger" | "success" }
+> = {
+  info: { label: "Info", icon: "Info", tone: "accent" },
+  event: { label: "Événement", icon: "Calendar", tone: "accent" },
+  urgent: { label: "Urgent", icon: "Bell", tone: "danger" },
+  menu: { label: "Cantine", icon: "Cutlery", tone: "success" },
 };
 
 export default function NewsPage() {
   const { data: news, loading } = useApiData<NewsEntry[]>("/api/news", []);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   if (loading) {
     return (
       <>
-        <Header title="Actualités" subtitle="Chargement..." />
-        <div className="flex items-center justify-center py-24">
-          <Papicon name="Butterfly" size={32} className="wap-pulse-accent" color="var(--accent)" />
-        </div>
+        <Header title="Actualités" subtitle="Chargement…" />
+        <main className="p-4 space-y-4 sm:p-6">
+          <LoadingPanel rows={6} />
+        </main>
       </>
     );
   }
 
-  const urgentNews = news.filter((n) => n.category === "urgent");
-  const otherNews  = news.filter((n) => n.category !== "urgent");
+  const urgent = news.filter((n) => n.category === "urgent");
+  const others = news.filter((n) => n.category !== "urgent");
 
   return (
     <>
       <Header title="Actualités" subtitle={`${news.length} actualités`} />
-      <main className="p-4 space-y-4 sm:p-6 sm:space-y-6">
-
-        {/* Urgent banners */}
-        {urgentNews.map((item, i) => (
-          <div
+      <main className="p-4 space-y-4 sm:p-6">
+        {urgent.map((item, i) => (
+          <Alert
             key={item.id}
-            className="flex items-start gap-3 sm:gap-4 rounded-2xl p-4 wap-in"
-            style={{
-              animationDelay: `${i * 0.06}s`,
-              background: "color-mix(in oklch, var(--danger) 10%, transparent)",
-              border: "1px solid color-mix(in oklch, var(--danger) 30%, transparent)",
-            }}
+            status="danger"
+            className="wap-in"
+            style={{ animationDelay: `${i * 0.05}s` }}
           >
-            <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-              style={{ background: "color-mix(in oklch, var(--danger) 15%, transparent)" }}
-            >
-              <Papicon name="Bell" size={20} color="var(--danger)" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="text-sm font-bold" style={{ color: "var(--danger)" }}>{item.title}</h3>
-                <span className="text-xs text-muted">{formatShortDate(item.date)}</span>
-              </div>
-              <p className="text-sm">{item.content}</p>
-              <p className="text-xs text-muted mt-2">— {item.author}</p>
-            </div>
-          </div>
+            <Alert.Indicator>
+              <Papicon name="Bell" size={16} />
+            </Alert.Indicator>
+            <Alert.Content>
+              <Alert.Title>{item.title}</Alert.Title>
+              <Alert.Description>
+                {item.content}
+                <span className="block mt-1.5 text-[11px] opacity-70">
+                  {item.author} · {formatDate(item.date)}
+                </span>
+              </Alert.Description>
+            </Alert.Content>
+          </Alert>
         ))}
 
-        {/* Empty state */}
-        {otherNews.length === 0 && urgentNews.length === 0 && (
-          <div className="rounded-2xl border border-border bg-surface p-12 text-center text-sm text-muted">
-            Aucune actualité
-          </div>
-        )}
-
-        {/* News list */}
-        {otherNews.length > 0 && (
-          <div className="space-y-3 sm:space-y-4">
-            {otherNews.map((item, i) => {
-              const config = categoryConfig[(item.category as CategoryKey)] ?? categoryConfig.info;
-              return (
-                <div
-                  key={item.id}
-                  className="rounded-2xl border border-border bg-surface p-4 sm:p-5 hover:bg-default/50 transition-colors wap-in"
-                  style={{ animationDelay: `${(urgentNews.length + i) * 0.05}s` }}
-                >
-                  <div className="flex items-start gap-3 sm:gap-4">
-                    <div
-                      className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl"
-                      style={{ background: `color-mix(in oklch, ${config.color} 12%, transparent)` }}
+        <Panel
+          title="Toutes les actualités"
+          meta={`${others.length} publications`}
+          flush
+          delay={0.05}
+        >
+          {others.length === 0 ? (
+            <Empty icon="Newspaper">Aucune actualité</Empty>
+          ) : (
+            <Rows>
+              {others.map((item) => {
+                const cfg = CATEGORIES[item.category as CategoryKey] ?? CATEGORIES.info;
+                const color = `var(--${cfg.tone})`;
+                const open = openId === item.id;
+                return (
+                  <div key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenId(open ? null : item.id)}
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-default/40"
                     >
-                      <Papicon name={config.icon} size={20} color={config.color} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span
-                          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-                          style={{ background: `color-mix(in oklch, ${config.color} 12%, transparent)`, color: config.color }}
-                        >
-                          <Papicon name={config.icon} size={10} color={config.color} />
-                          {config.label}
+                      <span
+                        className="w-[3px] self-stretch rounded-full shrink-0"
+                        style={{ background: color }}
+                      />
+                      <Papicon name={cfg.icon} size={14} color={color} />
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-[13px] font-medium truncate">
+                          {item.title}
                         </span>
-                        <span className="text-xs text-muted capitalize">{formatDate(item.date)}</span>
+                        <span
+                          className="block text-[11px] truncate"
+                          style={{ color: "var(--muted)" }}
+                        >
+                          {item.author} · {formatShortDate(item.date)}
+                        </span>
+                      </span>
+                      <Badge tone={cfg.tone}>{cfg.label}</Badge>
+                      <Papicon
+                        name={open ? "ChevronUp" : "ChevronDown"}
+                        size={13}
+                        color="var(--muted)"
+                      />
+                    </button>
+
+                    {open && (
+                      <div
+                        className="px-4 pb-4 pt-1"
+                        style={{ background: "var(--surface-secondary)" }}
+                      >
+                        <p className="text-[13px] leading-relaxed whitespace-pre-wrap">
+                          {item.content}
+                        </p>
+                        <span
+                          className="block mt-2 text-[11px] capitalize"
+                          style={{ color: "var(--muted)" }}
+                        >
+                          Publié par {item.author} · {formatDate(item.date)}
+                        </span>
                       </div>
-                      <h3 className="text-sm sm:text-base font-semibold mb-1 sm:mb-2">{item.title}</h3>
-                      <p className="text-xs sm:text-sm leading-relaxed text-muted">{item.content}</p>
-                      <p className="text-xs text-muted mt-2 sm:mt-3">Publié par {item.author}</p>
-                    </div>
+                    )}
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </Rows>
+          )}
+        </Panel>
       </main>
     </>
   );
