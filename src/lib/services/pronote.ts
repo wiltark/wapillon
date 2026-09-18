@@ -26,7 +26,7 @@ export async function loginPronote(
     kind: pawnote.AccountKind.STUDENT,
     username,
     password,
-    deviceUUID: "wapillon-web",
+    deviceUUID: "scoly-web",
   });
 
   // After login, the student's details live on the handle's resource.

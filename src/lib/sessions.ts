@@ -4,6 +4,7 @@
 import type {
   AccountRole,
   ChildInfo,
+  SchoolModule,
   SessionData,
   ServiceType,
   StudentInfo,
@@ -51,6 +52,7 @@ export function createSession(data: {
   edAccountType?: string;
   role?: AccountRole;
   children?: ChildInfo[];
+  modules?: SchoolModule[];
 }): InternalSession {
   const id = crypto.randomUUID();
   const session: InternalSession = {
@@ -64,6 +66,7 @@ export function createSession(data: {
     edAccountType: data.edAccountType,
     role: data.role ?? "student",
     children: data.children ?? [],
+    modules: data.modules ?? [],
     // Default to the first child so a parent lands on real data, not an
     // empty page waiting for a selection.
     activeChildId: data.children?.[0]?.id,

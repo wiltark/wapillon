@@ -15,6 +15,7 @@ async function handler(req: NextRequest): Promise<NextResponse> {
     student: session.student,
     role: session.role ?? "student",
     children: session.children ?? [],
+    modules: session.modules ?? [],
     activeChildId: session.activeChildId,
   });
 }

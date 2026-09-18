@@ -121,7 +121,7 @@ export default function SettingsPage() {
                 <Papicon name="Butterfly" size={18} />
               </span>
               <span className="flex-1 min-w-0">
-                <span className="block text-[13px] font-semibold">Wapillon Web</span>
+                <span className="block text-[13px] font-semibold">Scoly Web</span>
                 <span className="block text-[11px]" style={{ color: "var(--muted)" }}>
                   Version 1.0.0 — basé sur Papillon
                 </span>

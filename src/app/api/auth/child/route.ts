@@ -39,6 +39,7 @@ async function handler(req: NextRequest): Promise<NextResponse> {
     student: updated.student,
     role: updated.role,
     children: updated.children ?? [],
+    modules: updated.modules ?? [],
     activeChildId: updated.activeChildId,
   });
 }

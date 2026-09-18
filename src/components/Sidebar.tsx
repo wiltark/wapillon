@@ -14,6 +14,12 @@ interface NavItem {
   icon: string;
   /** Omit to show for every role. */
   roles?: AccountRole[];
+  /**
+   * École Directe module code gating this entry. Schools enable their own set,
+   * so an entry with a code only appears when that school actually runs it.
+   * Entries without a code are always shown.
+   */
+  module?: string;
 }
 
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
@@ -21,23 +27,45 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     label: "Scolarité",
     items: [
       { name: "Accueil", href: "/", icon: "Home" },
-      { name: "Emploi du temps", href: "/timetable", icon: "Calendar" },
-      { name: "Notes", href: "/grades", icon: "Grades", roles: ["student", "parent"] },
-      { name: "Devoirs", href: "/homework", icon: "Tasks", roles: ["student", "parent"] },
-    ],
-  },
-  {
-    label: "Établissement",
-    items: [
-      { name: "Messagerie", href: "/messages", icon: "Envelope" },
-      { name: "Actualités", href: "/news", icon: "Newspaper" },
+      { name: "Emploi du temps", href: "/timetable", icon: "Calendar", module: "EDT" },
+      {
+        name: "Notes",
+        href: "/grades",
+        icon: "Grades",
+        roles: ["student", "parent"],
+        module: "NOTES",
+      },
+      {
+        name: "Cahier de textes",
+        href: "/homework",
+        icon: "Tasks",
+        roles: ["student", "parent"],
+        module: "CAHIER_DE_TEXTES",
+      },
       {
         name: "Vie scolaire",
         href: "/attendance",
         icon: "Clock",
         roles: ["student", "parent"],
+        module: "VIE_SCOLAIRE",
       },
-      { name: "Facturation", href: "/invoices", icon: "Document", roles: ["parent"] },
+    ],
+  },
+  {
+    label: "Établissement",
+    items: [
+      { name: "Messagerie", href: "/messages", icon: "Envelope", module: "MESSAGERIE" },
+      { name: "Actualités", href: "/news", icon: "Newspaper" },
+      { name: "Vie de la classe", href: "/school", icon: "Info", module: "VIE_DE_LA_CLASSE" },
+      { name: "Documents", href: "/documents", icon: "Document", module: "DOCUMENTS_ELEVE" },
+      { name: "Menus", href: "/menu", icon: "Cutlery", module: "CANTINE_BARCODE" },
+      {
+        name: "Facturation",
+        href: "/invoices",
+        icon: "Document",
+        roles: ["parent"],
+        module: "SITUATION_FINANCIERE",
+      },
     ],
   },
 ];
@@ -91,6 +119,17 @@ export default function Sidebar() {
   const role = session?.role ?? "student";
   const children = session?.children ?? [];
 
+  /**
+   * Codes this school actually runs. When the list is empty — Pronote, or an
+   * older ED response — every entry is shown rather than none: hiding the whole
+   * app because a field is missing would be far worse than showing one page
+   * that turns out to be empty.
+   */
+  const enabledModules = new Set(
+    (session?.modules ?? []).filter((m) => m.enabled).map((m) => m.code)
+  );
+  const hasModuleList = enabledModules.size > 0;
+
   return (
     <>
       {/* Scrim: phones only, where the sidebar floats above the page */}
@@ -121,7 +160,7 @@ export default function Sidebar() {
           >
             <Papicon name="Butterfly" size={18} color="var(--accent-foreground)" />
           </span>
-          <span className="text-[15px] font-bold tracking-tight">Wapillon</span>
+          <span className="text-[15px] font-bold tracking-tight">Scoly</span>
           <button
             type="button"
             onClick={close}
@@ -192,7 +231,11 @@ export default function Sidebar() {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-4">
           {NAV_GROUPS.map((group, i) => {
-            const items = group.items.filter((item) => !item.roles || item.roles.includes(role));
+            const items = group.items.filter((item) => {
+              if (item.roles && !item.roles.includes(role)) return false;
+              if (item.module && hasModuleList && !enabledModules.has(item.module)) return false;
+              return true;
+            });
             if (items.length === 0) return null;
             return (
             <div key={group.label} className={i > 0 ? "mt-6" : ""}>

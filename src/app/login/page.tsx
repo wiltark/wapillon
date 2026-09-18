@@ -203,7 +203,7 @@ function Brand() {
       >
         <Papicon name="Butterfly" size={18} color="var(--accent-foreground)" />
       </div>
-      <Typography type="h4">Wapillon</Typography>
+      <Typography type="h4">Scoly</Typography>
     </div>
   );
 }
@@ -535,7 +535,7 @@ function Showcase({ step }: { step: Step }) {
             label: SERVICES[step.service].name,
             title: `Connecté à\n${SERVICES[step.service].name}.`,
             description:
-              "Vos données restent chez votre établissement. Wapillon ne fait que les afficher, plus clairement.",
+              "Vos données restent chez votre établissement. Scoly ne fait que les afficher, plus clairement.",
             features: SERVICES[step.service].features,
           }
         : {

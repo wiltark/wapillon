@@ -1,9 +1,10 @@
 // École Directe API service
-// Compatible with BlocksDirecte format (Wapillon)
+// Compatible with BlocksDirecte format (Scoly)
 
 import type {
   AccountRole,
   ChildInfo,
+  SchoolModule,
   StudentInfo,
   TimetableEntry,
   Grade,
@@ -130,6 +131,8 @@ export interface EDLoginResult {
   role: AccountRole;
   /** Parent accounts only: every child this login can see. */
   children: ChildInfo[];
+  /** Features this school has enabled. */
+  modules: SchoolModule[];
 }
 
 export interface ED2FAChallenge {
@@ -154,6 +157,26 @@ function extractAccount(account: Record<string, unknown>): StudentInfo {
     className: classe?.libelle || classe?.code || "",
     school: (account.nomEtablissement as string) || "",
   };
+}
+
+/**
+ * Which features this school has switched on.
+ *
+ * Schools pick their own module set, so this is the only reliable way to know
+ * whether the canteen, QCMs or digital textbooks exist for this account.
+ */
+function extractModules(account: Record<string, unknown>): SchoolModule[] {
+  const modules = account.modules;
+  if (!Array.isArray(modules)) return [];
+
+  return (modules as Record<string, unknown>[])
+    .filter((m) => m && typeof m.code === "string")
+    .map((m) => ({
+      code: String(m.code),
+      enabled: m.enable !== false,
+      order: typeof m.ordre === "number" ? m.ordre : undefined,
+      badge: typeof m.badge === "number" ? m.badge : undefined,
+    }));
 }
 
 /**
@@ -251,6 +274,7 @@ export async function loginEcoleDirecte(
     accountType,
     role,
     children,
+    modules: extractModules(account),
   };
 }
 
@@ -804,4 +828,196 @@ export async function getEDTeacherTimetable(
   }
 
   return { entries, newToken };
+}
+
+/* ── School-authored content ──────────────────────────────────────────────── */
+
+/**
+ * A page or notice the school itself publishes.
+ *
+ * École Directe has no single "custom pages" endpoint. Schools publish their own
+ * content through two places, and this merges them:
+ *  - `timelineAccueilCommun` postits — free-form HTML notices on the home screen
+ *  - `espacestravail` — shared workspaces (clubs, projects, year groups)
+ */
+export interface SchoolPage {
+  id: string;
+  kind: "notice" | "workspace";
+  title: string;
+  /** Sanitized HTML, safe to render. */
+  bodyHtml?: string;
+  author?: string;
+  date?: string;
+  /** Workspaces only. */
+  memberCount?: number;
+  isMember?: boolean;
+}
+
+export async function getEDSchoolPages(
+  token: string,
+  accountId: number
+): Promise<{ pages: SchoolPage[]; newToken: string }> {
+  const pages: SchoolPage[] = [];
+  let newToken = token;
+
+  // School-wide notice board. Not every school posts here.
+  try {
+    const { data, token: t } = await edFetch(
+      `/E/${accountId}/timelineAccueilCommun.awp?verbe=get&maxLignes=50`,
+      newToken
+    );
+    newToken = t;
+
+    const postits = (data as Record<string, unknown> | undefined)?.postits;
+    if (Array.isArray(postits)) {
+      for (const p of postits as Record<string, unknown>[]) {
+        const author = p.auteur as Record<string, unknown> | undefined;
+        const html = decodeBase64(String(p.contenu || ""));
+        pages.push({
+          id: `notice-${p.id}`,
+          kind: "notice",
+          // Postits carry no title; use the first line as one.
+          title: stripHtml(html).split("\n")[0]?.slice(0, 90) || "Information",
+          bodyHtml: sanitizeMessageHtml(html, proxyImageUrl),
+          author: author
+            ? `${author.civilite ?? ""} ${author.prenom ?? ""} ${author.nom ?? ""}`.trim()
+            : "Établissement",
+          date: String(p.dateCreation || p.dateDebut || ""),
+        });
+      }
+    }
+  } catch {
+    // Module disabled — fall through to workspaces.
+  }
+
+  // Shared workspaces the school has set up.
+  try {
+    const { data, token: t } = await edFetch(
+      `/E/${accountId}/espacestravail.awp?verbe=get`,
+      newToken
+    );
+    newToken = t;
+
+    if (Array.isArray(data)) {
+      for (const w of data as Record<string, unknown>[]) {
+        const summary = decodeBase64(String(w.resume || ""));
+        pages.push({
+          id: `workspace-${w.id}`,
+          kind: "workspace",
+          title: String(w.titre || "Espace de travail"),
+          bodyHtml: summary ? sanitizeMessageHtml(summary, proxyImageUrl) : undefined,
+          author: String(w.creePar || ""),
+          date: String(w.creeLe || ""),
+          memberCount: typeof w.nbMembres === "number" ? w.nbMembres : undefined,
+          isMember: Boolean(w.estMembre),
+        });
+      }
+    }
+  } catch {
+    // Same — a school with neither simply has no custom pages.
+  }
+
+  return { pages, newToken };
+}
+
+/* ── Administrative documents ─────────────────────────────────────────────── */
+
+export interface SchoolDocument {
+  id: number;
+  name: string;
+  type: string;
+  date?: string;
+}
+
+export async function getEDDocuments(
+  token: string,
+  accountId: number,
+  role: AccountRole = "student"
+): Promise<{ documents: SchoolDocument[]; newToken: string }> {
+  // Families and students read from different endpoints.
+  const path =
+    role === "parent" ? "/familledocuments.awp?verbe=get" : "/elevesDocuments.awp?verbe=get";
+
+  let data: unknown;
+  let newToken = token;
+  try {
+    ({ data, token: newToken } = await edFetch(path, token, { idEleve: accountId }, role));
+  } catch {
+    return { documents: [], newToken: token };
+  }
+
+  const documents: SchoolDocument[] = [];
+  const payload = data as Record<string, unknown> | undefined;
+  if (!payload) return { documents, newToken };
+
+  // The response groups files by category (notes, vie scolaire, factures…),
+  // each an array under its own key.
+  for (const [category, value] of Object.entries(payload)) {
+    if (!Array.isArray(value)) continue;
+    for (const doc of value as Record<string, unknown>[]) {
+      if (doc?.id == null) continue;
+      documents.push({
+        id: Number(doc.id),
+        name: String(doc.libelle || doc.nom || `Document ${doc.id}`),
+        type: category,
+        date: doc.date ? String(doc.date) : undefined,
+      });
+    }
+  }
+
+  return { documents, newToken };
+}
+
+/* ── Canteen menus ────────────────────────────────────────────────────────── */
+
+export interface MenuDay {
+  date: string;
+  /** Course name → dishes, in the order the school lists them. */
+  courses: { label: string; dishes: string[] }[];
+}
+
+export async function getEDMenus(
+  token: string,
+  accountId: number
+): Promise<{ menus: MenuDay[]; newToken: string }> {
+  let data: unknown;
+  let newToken = token;
+  try {
+    ({ data, token: newToken } = await edFetch(
+      `/menusRestaurationScolaire.awp?verbe=get`,
+      token,
+      { idEleve: accountId }
+    ));
+  } catch {
+    return { menus: [], newToken: token };
+  }
+
+  const list = Array.isArray(data)
+    ? data
+    : ((data as Record<string, unknown> | undefined)?.menus as unknown[] | undefined) ?? [];
+
+  const menus: MenuDay[] = [];
+  for (const day of list as Record<string, unknown>[]) {
+    const repas = day.repas;
+    const courses: MenuDay["courses"] = [];
+
+    if (Array.isArray(repas)) {
+      for (const meal of repas as Record<string, unknown>[]) {
+        const plats = meal.plats;
+        if (!Array.isArray(plats)) continue;
+        courses.push({
+          label: String(meal.libelle || meal.type || "Repas"),
+          dishes: (plats as Record<string, unknown>[]).map((p) =>
+            String(p.libelle || p.nom || "")
+          ).filter(Boolean),
+        });
+      }
+    }
+
+    if (courses.length > 0) {
+      menus.push({ date: String(day.date || ""), courses });
+    }
+  }
+
+  return { menus, newToken };
 }

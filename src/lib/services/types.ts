@@ -91,6 +91,21 @@ export interface AttendanceEntry {
  */
 export type AccountRole = "student" | "parent" | "teacher";
 
+/**
+ * A feature the school has switched on, as reported by `accounts[].modules`.
+ *
+ * Which pages exist differs per school — one may run the canteen module and no
+ * QCMs, another the reverse. Reading this is what lets the nav show exactly
+ * what the establishment actually offers, instead of a fixed guess.
+ */
+export interface SchoolModule {
+  code: string;
+  enabled: boolean;
+  /** Position the school chose for it in their own sidebar. */
+  order?: number;
+  badge?: number;
+}
+
 /** One child attached to a parent account (from `profile.eleves`). */
 export interface ChildInfo {
   id: string;
@@ -141,6 +156,8 @@ export interface SessionData {
   children?: ChildInfo[];
   /** Parent accounts only: which child's data is currently being shown. */
   activeChildId?: string;
+  /** Features this school has enabled; drives which nav entries appear. */
+  modules?: SchoolModule[];
 }
 
 // Colors assigned to subjects

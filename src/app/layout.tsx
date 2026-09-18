@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Wapillon — Vie scolaire",
+  title: "Scoly — Vie scolaire",
   description: "Votre vie scolaire, avec de la magie en plus.",
 };
 

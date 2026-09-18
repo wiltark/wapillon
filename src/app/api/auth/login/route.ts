@@ -42,6 +42,7 @@ async function handler(req: NextRequest): Promise<NextResponse> {
         edAccountType: result.accountType,
         role: result.role,
         children: result.children,
+        modules: result.modules,
       });
 
       const response = NextResponse.json({
@@ -50,6 +51,7 @@ async function handler(req: NextRequest): Promise<NextResponse> {
         student: session.student,
         role: session.role ?? "student",
         children: session.children ?? [],
+        modules: session.modules ?? [],
         activeChildId: session.activeChildId,
       });
       response.cookies.set("session_id", session.id, {
