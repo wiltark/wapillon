@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const h = require\\('./node_modules/@heroui/react/dist/index.js'\\); console.log\\(Object.keys\\(h\\).filter\\(k => k[0] === k[0].toUpperCase\\(\\)\\).sort\\(\\).join\\('\\\\n'\\)\\)\")"
+    ]
+  }
+}
