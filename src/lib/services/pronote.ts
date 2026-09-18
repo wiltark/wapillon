@@ -46,31 +46,68 @@ export async function loginPronote(
   };
 }
 
+/**
+ * The period Pronote itself would open a tab on: the tab's default, else the
+ * one covering today. Undefined when the school has the tab switched off.
+ */
+function defaultPeriod(
+  handle: pawnote.SessionHandle,
+  location: pawnote.TabLocation
+): pawnote.Period | undefined {
+  const tab = handle.userResource.tabs.get(location);
+  if (!tab) return undefined;
+
+  const now = Date.now();
+  return (
+    tab.defaultPeriod ??
+    tab.periods.find((p) => p.startDate.getTime() <= now && now <= p.endDate.getTime()) ??
+    tab.periods[0]
+  );
+}
+
+/** Pronote numbers weeks from the first Monday of the school year. */
+function currentWeek(handle: pawnote.SessionHandle): number {
+  return pawnote.translateToWeekNumber(new Date(), handle.instance.firstMonday);
+}
+
+/** Numeric points of a grade value, or undefined for absent, exempted, etc. */
+function points(v: pawnote.GradeValue | undefined): number | undefined {
+  switch (v?.kind) {
+    case pawnote.GradeKind.Grade:
+      return v.points;
+    case pawnote.GradeKind.AbsentZero:
+    case pawnote.GradeKind.UnreturnedZero:
+      return 0;
+    default:
+      return undefined;
+  }
+}
+
 export async function getPronoteGrades(
   handle: pawnote.SessionHandle
 ): Promise<Grade[]> {
-  const overview = await pawnote.gradesOverview(handle);
+  const period = defaultPeriod(handle, pawnote.TabLocation.Grades);
+  if (!period) return [];
+
+  const overview = await pawnote.gradesOverview(handle, period);
   const grades: Grade[] = [];
 
-  if (overview.grades) {
-    for (const g of overview.grades) {
-      const value = g.student?.value;
-      const outOf = g.outOf?.value ?? 20;
-      if (value == null || isNaN(value)) continue;
+  for (const g of overview.grades) {
+    const value = points(g.value);
+    if (value == null || isNaN(value)) continue;
 
-      grades.push({
-        id: g.id ?? String(Math.random()),
-        subject: g.subject?.name ?? "Inconnu",
-        title: g.comment ?? "Évaluation",
-        value,
-        outOf,
-        coefficient: g.coefficient ?? 1,
-        date: g.date?.toISOString() ?? "",
-        classAverage: g.average?.value,
-        classMin: g.min?.value,
-        classMax: g.max?.value,
-      });
-    }
+    grades.push({
+      id: g.id,
+      subject: g.subject.name,
+      title: g.comment || "Évaluation",
+      value,
+      outOf: points(g.outOf) ?? 20,
+      coefficient: g.coefficient,
+      date: g.date.toISOString(),
+      classAverage: points(g.average),
+      classMin: points(g.min),
+      classMax: points(g.max),
+    });
   }
 
   return grades;
@@ -80,27 +117,58 @@ export async function getPronoteTimetable(
   handle: pawnote.SessionHandle,
   weekNumber?: number
 ): Promise<TimetableEntry[]> {
-  const raw = weekNumber != null
-    ? await pawnote.timetableFromWeek(handle, weekNumber)
-    : await pawnote.timetableFromWeek(
-        handle,
-        pawnote.translateToWeekNumber(handle, new Date())
-      );
+  const timetable = await pawnote.timetableFromWeek(
+    handle,
+    weekNumber ?? currentWeek(handle)
+  );
 
-  const lessons = pawnote.parseTimetable(handle, raw);
+  // Filters and merges `timetable.classes` in place.
+  pawnote.parseTimetable(handle, timetable, {
+    withSuperposedCanceledClasses: false,
+    withCanceledClasses: true,
+    withPlannedClasses: true,
+  });
+
   const entries: TimetableEntry[] = [];
 
-  for (const lesson of lessons) {
-    entries.push({
-      id: lesson.id ?? String(Math.random()),
-      subject: lesson.subject?.name ?? "Cours",
-      teacher: lesson.teacher?.name ?? "",
-      room: lesson.room ?? "",
-      start: lesson.start?.toISOString() ?? "",
-      end: lesson.end?.toISOString() ?? "",
-      color: lesson.subject?.color ?? "#3b82f6",
-      status: lesson.canceled ? "cancelled" : lesson.modified ? "modified" : "normal",
-    });
+  for (const c of timetable.classes) {
+    const base = {
+      id: c.id,
+      start: c.startDate.toISOString(),
+      end: c.endDate.toISOString(),
+      color: c.backgroundColor ?? "#3b82f6",
+    };
+
+    switch (c.is) {
+      case "lesson":
+        entries.push({
+          ...base,
+          subject: c.subject?.name ?? "Cours",
+          teacher: c.teacherNames.join(", "),
+          room: c.classrooms.join(", "),
+          // `status` is Pronote's note on a changed lesson, e.g. "Prof. absent".
+          status: c.canceled ? "cancelled" : c.status ? "modified" : "normal",
+        });
+        break;
+      case "activity":
+        entries.push({
+          ...base,
+          subject: c.title,
+          teacher: c.attendants.join(", "),
+          room: "",
+          status: "normal",
+        });
+        break;
+      case "detention":
+        entries.push({
+          ...base,
+          subject: c.title ?? "Retenue",
+          teacher: c.teacherNames.join(", "),
+          room: c.classrooms.join(", "),
+          status: "normal",
+        });
+        break;
+    }
   }
 
   return entries;
@@ -110,7 +178,7 @@ export async function getPronoteHomework(
   handle: pawnote.SessionHandle,
   weekNumber?: number
 ): Promise<HomeworkEntry[]> {
-  const wk = weekNumber ?? pawnote.translateToWeekNumber(handle, new Date());
+  const wk = weekNumber ?? currentWeek(handle);
   const raw = await pawnote.assignmentsFromWeek(handle, wk);
   const homework: HomeworkEntry[] = [];
 
@@ -134,13 +202,14 @@ export async function getPronoteNews(
   const raw = await pawnote.news(handle);
   const items: NewsEntry[] = [];
 
-  for (const n of raw) {
+  for (const n of raw.items) {
     items.push({
-      id: n.id ?? String(Math.random()),
+      id: n.id,
       title: n.title ?? "Sans titre",
-      content: n.content ?? "",
-      date: n.creationDate?.toISOString() ?? "",
-      author: n.author ?? "Établissement",
+      // Surveys are a list of questions rather than a body of text.
+      content: n.is === "information" ? n.content : "",
+      date: n.creationDate.toISOString(),
+      author: n.author || "Établissement",
       category: "info",
     });
   }
@@ -151,47 +220,45 @@ export async function getPronoteNews(
 export async function getPronoteAttendance(
   handle: pawnote.SessionHandle
 ): Promise<AttendanceEntry[]> {
-  const raw = await pawnote.presence(handle);
+  // Absences, lateness and punishments live in the "vie scolaire" notebook.
+  const period = defaultPeriod(handle, pawnote.TabLocation.Notebook);
+  if (!period) return [];
+
+  const raw = await pawnote.notebook(handle, period);
   const records: AttendanceEntry[] = [];
 
-  if (raw.absences) {
-    for (const a of raw.absences) {
-      records.push({
-        id: a.id ?? String(Math.random()),
-        type: "absence",
-        date: a.from?.toISOString() ?? "",
-        startTime: a.from?.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) ?? "",
-        endTime: a.to?.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
-        reason: a.reason ?? undefined,
-        justified: a.justified ?? false,
-      });
-    }
+  for (const a of raw.absences) {
+    records.push({
+      id: a.id,
+      type: "absence",
+      date: a.startDate.toISOString(),
+      startTime: a.startDate.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+      endTime: a.endDate.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+      reason: a.reason,
+      justified: a.justified,
+    });
   }
 
-  if (raw.delays) {
-    for (const d of raw.delays) {
-      records.push({
-        id: d.id ?? String(Math.random()),
-        type: "late",
-        date: d.date?.toISOString() ?? "",
-        startTime: d.date?.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) ?? "",
-        reason: d.reason ?? undefined,
-        justified: d.justified ?? false,
-      });
-    }
+  for (const d of raw.delays) {
+    records.push({
+      id: d.id,
+      type: "late",
+      date: d.date.toISOString(),
+      startTime: d.date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+      reason: d.reason,
+      justified: d.justified,
+    });
   }
 
-  if (raw.punishments) {
-    for (const p of raw.punishments) {
-      records.push({
-        id: p.id ?? String(Math.random()),
-        type: "punishment",
-        date: p.date?.toISOString() ?? "",
-        startTime: "",
-        reason: p.reason ?? "",
-        justified: true,
-      });
-    }
+  for (const p of raw.punishments) {
+    records.push({
+      id: p.id,
+      type: "punishment",
+      date: p.dateGiven.toISOString(),
+      startTime: "",
+      reason: p.reasons.join(", ") || p.title,
+      justified: true,
+    });
   }
 
   return records;
