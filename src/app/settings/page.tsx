@@ -5,14 +5,14 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { ToggleButton, ToggleButtonGroup } from "@heroui/react";
 import Header from "@/components/Header";
-import Papicon from "@/components/Papicon";
+import Icon, { type IconName } from "@/components/Icon";
 import { Panel, RowItem, Rows } from "@/components/ui";
 import { useAuth } from "@/lib/auth-context";
 
 const THEMES = [
   { value: "light", icon: "Sun", label: "Clair" },
   { value: "dark", icon: "Moon", label: "Sombre" },
-  { value: "system", icon: "Gears", label: "Système" },
+  { value: "system", icon: "Desktop", label: "Système" },
 ] as const;
 
 export default function SettingsPage() {
@@ -81,7 +81,7 @@ export default function SettingsPage() {
                   <img src={serviceLogo} alt="" className="h-3.5 w-3.5 object-contain" />
                 </span>
               ) : (
-                <Papicon name="Lock" size={14} color="var(--accent)" />
+                <Icon name="Lock" size={14} color="var(--accent)" />
               )}
               <span className="text-[12px] font-semibold">{serviceName}</span>
             </span>
@@ -103,7 +103,7 @@ export default function SettingsPage() {
             {THEMES.map((t, i) => (
               <ToggleButton key={t.value} id={t.value}>
                 {i > 0 && <ToggleButtonGroup.Separator />}
-                <Papicon name={t.icon} size={15} />
+                <Icon name={t.icon} size={15} />
                 {t.label}
               </ToggleButton>
             ))}
@@ -118,7 +118,7 @@ export default function SettingsPage() {
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
                 style={{ background: "var(--accent)", color: "var(--accent-foreground)" }}
               >
-                <Papicon name="Butterfly" size={18} />
+                <Icon name="Logo" size={18} />
               </span>
               <span className="flex-1 min-w-0">
                 <span className="block text-[13px] font-semibold">Scoly Web</span>
@@ -145,7 +145,7 @@ export default function SettingsPage() {
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
               style={{ background: "color-mix(in oklch, var(--danger) 14%, transparent)" }}
             >
-              <Papicon name="Logout" size={16} color="var(--danger)" />
+              <Icon name="Logout" size={16} color="var(--danger)" />
             </span>
             <span
               className="flex-1 text-[13px] font-semibold"
@@ -153,7 +153,7 @@ export default function SettingsPage() {
             >
               Se déconnecter
             </span>
-            <Papicon name="ChevronRight" size={13} color="var(--danger)" />
+            <Icon name="ChevronRight" size={13} color="var(--danger)" />
           </RowItem>
         </Panel>
 
@@ -172,7 +172,7 @@ function ExternalRow({
 }: {
   label: string;
   href: string;
-  icon?: string;
+  icon?: IconName;
 }) {
   return (
     <a
@@ -185,10 +185,10 @@ function ExternalRow({
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
         style={{ background: "var(--surface-secondary)" }}
       >
-        <Papicon name={icon} size={15} color="var(--muted)" />
+        <Icon name={icon} size={15} color="var(--muted)" />
       </span>
       <span className="flex-1 text-[13px]">{label}</span>
-      <Papicon name="ExternalLink" size={13} color="var(--muted)" />
+      <Icon name="ExternalLink" size={13} color="var(--muted)" />
     </a>
   );
 }

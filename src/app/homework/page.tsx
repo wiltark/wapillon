@@ -3,7 +3,7 @@
 import React, { useCallback, useState } from "react";
 import { Button, Checkbox, ToggleButton, ToggleButtonGroup } from "@heroui/react";
 import Header from "@/components/Header";
-import Papicon from "@/components/Papicon";
+import Icon from "@/components/Icon";
 import {
   Badge,
   Empty,
@@ -254,7 +254,7 @@ function HomeworkRow({
             </Badge>
           )}
 
-          <Papicon name={expanded ? "ChevronUp" : "ChevronDown"} size={13} color="var(--muted)" />
+          <Icon name={expanded ? "ChevronUp" : "ChevronDown"} size={13} color="var(--muted)" />
         </button>
       </div>
 
@@ -308,7 +308,7 @@ function HomeworkRow({
             isDisabled={syncing}
             onPress={onToggle}
           >
-            <Papicon name={hw.done ? "Cross" : "Check"} size={12} />
+            <Icon name={hw.done ? "Cross" : "Check"} size={12} />
             {syncing ? "Synchronisation…" : hw.done ? "Marquer à faire" : "Marquer comme fait"}
           </Button>
         </div>
@@ -366,7 +366,7 @@ function DocumentPreview({ doc }: { doc: HomeworkDocument }) {
         color: "var(--accent)",
       }}
     >
-      <Papicon name="Paperclip" size={10} color="var(--accent)" />
+      <Icon name="Paperclip" size={10} color="var(--accent)" />
       <span className="truncate">{doc.name}</span>
     </a>
   );

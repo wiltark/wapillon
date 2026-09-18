@@ -1,7 +1,7 @@
 "use client";
 
 import Header from "@/components/Header";
-import Papicon from "@/components/Papicon";
+import Icon from "@/components/Icon";
 import { Badge, Empty, LoadingPanel, Metric, Panel, RowItem, Rows } from "@/components/ui";
 import { useApiData, useAuth } from "@/lib/auth-context";
 import { formatShortDate, type InvoiceEntry } from "@/lib/services/types";
@@ -91,7 +91,7 @@ export default function InvoicesPage() {
                       aria-label={`Télécharger ${invoice.label}`}
                       className="shrink-0 transition-opacity hover:opacity-60"
                     >
-                      <Papicon name="Download" size={14} color="var(--muted)" />
+                      <Icon name="Download" size={14} color="var(--muted)" />
                     </a>
                   )}
                 </RowItem>

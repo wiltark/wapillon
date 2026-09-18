@@ -4,14 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
-import Papicon from "./Papicon";
+import Icon, { type IconName } from "./Icon";
 
 import type { AccountRole } from "@/lib/services/types";
 
 interface NavItem {
   name: string;
   href: string;
-  icon: string;
+  icon: IconName;
   /** Omit to show for every role. */
   roles?: AccountRole[];
   /**
@@ -158,7 +158,7 @@ export default function Sidebar() {
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
             style={{ background: "var(--accent)" }}
           >
-            <Papicon name="Butterfly" size={18} color="var(--accent-foreground)" />
+            <Icon name="Logo" size={18} color="var(--accent-foreground)" />
           </span>
           <span className="text-[15px] font-bold tracking-tight">Scoly</span>
           <button
@@ -167,7 +167,7 @@ export default function Sidebar() {
             aria-label="Fermer"
             className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-default/60 md:hidden"
           >
-            <Papicon name="Cross" size={15} color="var(--muted)" />
+            <Icon name="Cross" size={15} color="var(--muted)" />
           </button>
         </div>
 
@@ -220,7 +220,7 @@ export default function Sidebar() {
                         {child.className}
                       </span>
                     </span>
-                    {active && <Papicon name="Check" size={11} color="var(--accent)" />}
+                    {active && <Icon name="Check" size={11} color="var(--accent)" />}
                   </button>
                 );
               })}
@@ -268,7 +268,7 @@ export default function Sidebar() {
                         }
                       >
                         <span className="flex h-5 w-5 shrink-0 items-center justify-center">
-                          <Papicon
+                          <Icon
                             name={item.icon}
                             size={18}
                             color={active ? "var(--accent)" : "var(--muted)"}
@@ -309,7 +309,7 @@ export default function Sidebar() {
                 {student?.className || "—"}
               </span>
             </span>
-            <Papicon name="Gears" size={14} color="var(--muted)" />
+            <Icon name="Gears" size={14} color="var(--muted)" />
           </Link>
 
           <button
@@ -322,7 +322,7 @@ export default function Sidebar() {
             style={{ color: "var(--danger)" }}
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center">
-              <Papicon name="Logout" size={16} color="var(--danger)" />
+              <Icon name="Logout" size={16} color="var(--danger)" />
             </span>
             <span>Déconnexion</span>
           </button>

@@ -2,7 +2,7 @@
 
 import { Alert } from "@heroui/react";
 import Header from "@/components/Header";
-import Papicon from "@/components/Papicon";
+import Icon, { type IconName } from "@/components/Icon";
 import {
   Badge,
   Empty,
@@ -20,7 +20,7 @@ type AttendanceType = "absence" | "late" | "departure" | "punishment";
 
 const TYPES: Record<
   AttendanceType,
-  { label: string; icon: string; tone: "danger" | "warning" | "accent" }
+  { label: string; icon: IconName; tone: "danger" | "warning" | "accent" }
 > = {
   absence: { label: "Absence", icon: "Cross", tone: "danger" },
   late: { label: "Retard", icon: "Clock", tone: "warning" },
@@ -95,7 +95,7 @@ export default function AttendancePage() {
         {unjustified.length > 0 && (
           <Alert status="warning" className="wap-in" style={{ animationDelay: "0.05s" }}>
             <Alert.Indicator>
-              <Papicon name="Info" size={16} />
+              <Icon name="Info" size={16} />
             </Alert.Indicator>
             <Alert.Content>
               <Alert.Description>
@@ -131,7 +131,7 @@ export default function AttendancePage() {
 
                     <span className="flex-1 min-w-0">
                       <span className="flex items-center gap-1.5">
-                        <Papicon name={cfg.icon} size={12} color={color} />
+                        <Icon name={cfg.icon} size={12} color={color} />
                         <span className="text-[12px] font-semibold">{cfg.label}</span>
                       </span>
                       <span

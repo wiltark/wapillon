@@ -12,7 +12,7 @@
 
 import Link from "next/link";
 import { Meter, Typography } from "@heroui/react";
-import Papicon from "./Papicon";
+import Icon, { type IconName } from "./Icon";
 
 /* ── Containers ───────────────────────────────────────────────────────────── */
 
@@ -61,7 +61,7 @@ export function Panel({
                 className="flex items-center gap-0.5 text-[11px] font-semibold transition-opacity hover:opacity-60"
                 style={{ color: "var(--accent)" }}
               >
-                Tout voir <Papicon name="ChevronRight" size={11} />
+                Tout voir <Icon name="ChevronRight" size={11} />
               </Link>
             )}
           </div>
@@ -159,7 +159,7 @@ export function Trend({ value, showValue = true }: { value: number; showValue?: 
       className="inline-flex items-center gap-0.5 text-[11px] font-bold tabular-nums"
       style={{ color }}
     >
-      <Papicon name={up ? "ArrowUp" : "ArrowDown"} size={10} color={color} />
+      <Icon name={up ? "ArrowUp" : "ArrowDown"} size={10} color={color} />
       {showValue && `${up ? "+" : ""}${value.toFixed(1)}`}
     </span>
   );
@@ -233,7 +233,7 @@ export function Badge({
   children,
 }: {
   tone?: Tone;
-  icon?: string;
+  icon?: IconName;
   solid?: boolean;
   children: React.ReactNode;
 }) {
@@ -247,7 +247,7 @@ export function Badge({
           : { background: `color-mix(in oklch, ${color} 14%, transparent)`, color }
       }
     >
-      {icon && <Papicon name={icon} size={9} color={solid ? "currentColor" : color} />}
+      {icon && <Icon name={icon} size={9} color={solid ? "currentColor" : color} />}
       {children}
     </span>
   );
@@ -265,10 +265,10 @@ export function SubjectTag({ subject, color }: { subject: string; color: string 
 
 /* ── States ───────────────────────────────────────────────────────────────── */
 
-export function Empty({ icon = "Info", children }: { icon?: string; children: React.ReactNode }) {
+export function Empty({ icon = "Info", children }: { icon?: IconName; children: React.ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-10">
-      <Papicon name={icon} size={22} color="var(--muted)" />
+      <Icon name={icon} size={22} color="var(--muted)" />
       <Typography type="body-sm" color="muted">
         {children}
       </Typography>

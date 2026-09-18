@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Typography } from "@heroui/react";
-import Papicon from "./Papicon";
+import Icon from "./Icon";
 import { useSidebar } from "./Sidebar";
 
 interface HeaderProps {
@@ -23,7 +23,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
           onPress={toggle}
           className="md:hidden"
         >
-          <Papicon name="Menu" size={20} />
+          <Icon name="Menu" size={20} />
         </Button>
         <div className="min-w-0">
           <Typography type="h4" className="truncate">
@@ -39,10 +39,10 @@ export default function Header({ title, subtitle }: HeaderProps) {
 
       <div className="flex items-center gap-1">
         <Button isIconOnly variant="ghost" size="sm" aria-label="Rechercher">
-          <Papicon name="Search" size={18} />
+          <Icon name="Search" size={18} />
         </Button>
         <Button isIconOnly variant="ghost" size="sm" aria-label="Notifications" className="relative">
-          <Papicon name="Bell" size={18} />
+          <Icon name="Bell" size={18} />
           <span
             className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full"
             style={{ background: "var(--danger)" }}

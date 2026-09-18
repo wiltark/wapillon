@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@heroui/react";
 import Header from "@/components/Header";
-import Papicon from "@/components/Papicon";
+import Icon from "@/components/Icon";
 import { Badge, Empty, LoadingPanel, Metric, Panel } from "@/components/ui";
 import { useApiData } from "@/lib/auth-context";
 import { PRESET_COLORS, useSubjectPrefs, type SubjectStyle } from "@/lib/subject-prefs";
@@ -152,7 +152,7 @@ export default function TimetablePage() {
                 setSelectedDay(0);
               }}
             >
-              <Papicon name="ChevronLeft" size={15} />
+              <Icon name="ChevronLeft" size={15} />
             </Button>
 
             <div className="grid flex-1 grid-cols-5 gap-1.5">
@@ -206,7 +206,7 @@ export default function TimetablePage() {
                 setSelectedDay(0);
               }}
             >
-              <Papicon name="ChevronRight" size={15} />
+              <Icon name="ChevronRight" size={15} />
             </Button>
           </div>
 
@@ -220,7 +220,7 @@ export default function TimetablePage() {
                 setSelectedDay(defaultDay);
               }}
             >
-              <Papicon name="ArrowLeft" size={12} />
+              <Icon name="ArrowLeft" size={12} />
               Revenir à aujourd&apos;hui
             </Button>
           )}
@@ -453,7 +453,7 @@ export default function TimetablePage() {
                               aria-label={`Personnaliser ${course.subject}`}
                               className="shrink-0 rounded-lg p-1 transition-opacity hover:opacity-60"
                             >
-                              <Papicon
+                              <Icon
                                 name="Gears"
                                 size={13}
                                 color={style.image ? "#fff" : "var(--muted)"}

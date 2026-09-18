@@ -1,7 +1,7 @@
 "use client";
 
 import Header from "@/components/Header";
-import Papicon from "@/components/Papicon";
+import Icon from "@/components/Icon";
 import {
   Badge,
   Empty,
@@ -256,7 +256,7 @@ export default function Home() {
                 const cfg = NEWS_TONES[item.category] ?? NEWS_TONES.info;
                 return (
                   <RowItem key={item.id}>
-                    <Papicon name="Newspaper" size={14} color="var(--muted)" />
+                    <Icon name="Newspaper" size={14} color="var(--muted)" />
                     <span className="flex-1 min-w-0">
                       <span className="block text-[12px] font-medium truncate">{item.title}</span>
                       <span

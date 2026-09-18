@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Alert } from "@heroui/react";
 import Header from "@/components/Header";
-import Papicon from "@/components/Papicon";
+import Icon, { type IconName } from "@/components/Icon";
 import { Badge, Empty, LoadingPanel, Panel, Rows } from "@/components/ui";
 import { useApiData } from "@/lib/auth-context";
 import { type NewsEntry, formatDate, formatShortDate } from "@/lib/services/types";
@@ -12,7 +12,7 @@ type CategoryKey = "info" | "event" | "urgent" | "menu";
 
 const CATEGORIES: Record<
   CategoryKey,
-  { label: string; icon: string; tone: "accent" | "danger" | "success" }
+  { label: string; icon: IconName; tone: "accent" | "danger" | "success" }
 > = {
   info: { label: "Info", icon: "Info", tone: "accent" },
   event: { label: "Événement", icon: "Calendar", tone: "accent" },
@@ -50,7 +50,7 @@ export default function NewsPage() {
             style={{ animationDelay: `${i * 0.05}s` }}
           >
             <Alert.Indicator>
-              <Papicon name="Bell" size={16} />
+              <Icon name="Bell" size={16} />
             </Alert.Indicator>
             <Alert.Content>
               <Alert.Title>{item.title}</Alert.Title>
@@ -89,7 +89,7 @@ export default function NewsPage() {
                         className="w-[3px] self-stretch rounded-full shrink-0"
                         style={{ background: color }}
                       />
-                      <Papicon name={cfg.icon} size={14} color={color} />
+                      <Icon name={cfg.icon} size={14} color={color} />
                       <span className="flex-1 min-w-0">
                         <span className="block text-[13px] font-medium truncate">
                           {item.title}
@@ -102,7 +102,7 @@ export default function NewsPage() {
                         </span>
                       </span>
                       <Badge tone={cfg.tone}>{cfg.label}</Badge>
-                      <Papicon
+                      <Icon
                         name={open ? "ChevronUp" : "ChevronDown"}
                         size={13}
                         color="var(--muted)"

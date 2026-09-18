@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Header from "@/components/Header";
-import Papicon from "@/components/Papicon";
+import Icon from "@/components/Icon";
 import { Badge, Empty, LoadingPanel } from "@/components/ui";
 import { useApiData } from "@/lib/auth-context";
 import { formatShortDate, type MessageEntry, type MessageFolder } from "@/lib/services/types";
@@ -86,7 +86,7 @@ export default function MessagesPage() {
               className="flex items-center gap-2 rounded-xl px-3 py-2"
               style={{ background: "var(--surface-secondary)" }}
             >
-              <Papicon name="Search" size={14} color="var(--muted)" />
+              <Icon name="Search" size={14} color="var(--muted)" />
               <input
                 type="search"
                 value={query}
@@ -164,7 +164,7 @@ export default function MessagesPage() {
                           </span>
                         </span>
                         {message.hasAttachments && (
-                          <Papicon name="Paperclip" size={12} color="var(--muted)" />
+                          <Icon name="Paperclip" size={12} color="var(--muted)" />
                         )}
                       </button>
                     </li>
@@ -196,7 +196,7 @@ export default function MessagesPage() {
                   className="mb-2 flex items-center gap-1.5 text-[12px] font-medium lg:hidden"
                   style={{ color: "var(--accent)" }}
                 >
-                  <Papicon name="ArrowLeft" size={12} color="var(--accent)" />
+                  <Icon name="ArrowLeft" size={12} color="var(--accent)" />
                   Retour
                 </button>
 
@@ -254,9 +254,9 @@ export default function MessagesPage() {
                           download={file.name}
                           className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-[12px] font-medium transition-colors hover:bg-default/40"
                         >
-                          <Papicon name="Paperclip" size={12} color="var(--accent)" />
+                          <Icon name="Paperclip" size={12} color="var(--accent)" />
                           <span className="max-w-[200px] truncate">{file.name}</span>
-                          <Papicon name="Download" size={12} color="var(--muted)" />
+                          <Icon name="Download" size={12} color="var(--muted)" />
                         </a>
                       ))}
                     </div>

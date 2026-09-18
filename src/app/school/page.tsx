@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Header from "@/components/Header";
-import Papicon from "@/components/Papicon";
+import Icon from "@/components/Icon";
 import { Badge, Empty, LoadingPanel, Panel, Rows } from "@/components/ui";
 import { useApiData, useAuth } from "@/lib/auth-context";
 import type { SchoolPage } from "@/lib/services/ecoledirecte";
@@ -102,7 +102,7 @@ function PageRow({
           className="w-[3px] self-stretch rounded-full shrink-0"
           style={{ background: isWorkspace ? "var(--success)" : "var(--accent)" }}
         />
-        <Papicon
+        <Icon
           name={isWorkspace ? "Folder" : "Info"}
           size={14}
           color={isWorkspace ? "var(--success)" : "var(--accent)"}
@@ -121,7 +121,7 @@ function PageRow({
           </span>
         )}
 
-        <Papicon name={open ? "ChevronUp" : "ChevronDown"} size={13} color="var(--muted)" />
+        <Icon name={open ? "ChevronUp" : "ChevronDown"} size={13} color="var(--muted)" />
       </button>
 
       {open && (

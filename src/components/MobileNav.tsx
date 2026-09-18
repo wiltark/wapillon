@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import Papicon from "./Papicon";
+import Icon, { type IconName } from "./Icon";
 
-const tabs = [
+const tabs: { name: string; href: string; icon: IconName }[] = [
   { name: "Accueil", href: "/", icon: "Home" },
   { name: "EDT", href: "/timetable", icon: "Calendar" },
   { name: "Notes", href: "/grades", icon: "Grades" },
@@ -30,7 +30,7 @@ export default function MobileNav() {
                   : "text-muted active:text-foreground"
               }`}
             >
-              <Papicon
+              <Icon
                 name={tab.icon}
                 size={22}
                 className={isActive ? "text-accent" : ""}

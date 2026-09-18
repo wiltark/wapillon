@@ -2,7 +2,7 @@
 
 import { getSubjectIconName } from "@/lib/icons";
 import { getSubjectColor } from "@/lib/services/types";
-import Papicon from "./Papicon";
+import Icon from "./Icon";
 
 interface SubjectIconProps {
   subject: string;
@@ -27,7 +27,7 @@ export default function SubjectIcon({ subject, size = "md", className = "" }: Su
       className={`flex shrink-0 items-center justify-center rounded-lg ${sizeClasses[size]} ${className}`}
       style={{ backgroundColor: color + "18", color }}
     >
-      <Papicon name={iconName} size={iconSizeMap[size]} />
+      <Icon name={iconName} size={iconSizeMap[size]} />
     </div>
   );
 }

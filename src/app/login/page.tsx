@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Alert,
@@ -10,13 +10,17 @@ import {
   Label,
   Radio,
   RadioGroup,
+  SearchField,
   Separator,
   Spinner,
+  Tabs,
   TextField,
   Typography,
 } from "@heroui/react";
 import { useAuth } from "@/lib/auth-context";
-import Papicon from "@/components/Papicon";
+import Icon, { type IconName } from "@/components/Icon";
+import { RowItem, Rows } from "@/components/ui";
+import type { DirectorySchool, NearbyInstance } from "@/lib/services/pronote-schools";
 
 type Service = "ecoledirecte" | "pronote";
 
@@ -27,9 +31,21 @@ interface TwoFactorState {
   twoFAToken: string;
 }
 
-/** Three screens, one at a time: pick a service → sign in → answer the security question. */
+/** The Pronote instance the user signs in to. */
+interface PronoteSchool {
+  name: string;
+  url: string;
+}
+
+type FinderMode = "name" | "gps" | "url";
+
+/**
+ * One screen at a time: pick a service → (Pronote: find the school) → sign in →
+ * answer the security question.
+ */
 type Step =
   | { name: "service" }
+  | { name: "school" }
   | { name: "credentials"; service: Service }
   | { name: "twofa"; service: Service; twoFA: TwoFactorState };
 
@@ -55,7 +71,10 @@ export default function LoginPage() {
   const [step, setStep] = useState<Step>({ name: "service" });
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [pronoteUrl, setPronoteUrl] = useState("");
+  const [school, setSchool] = useState<PronoteSchool | null>(null);
+  // Kept here so "Changer" on the credentials screen comes back to the same search
+  const [finderMode, setFinderMode] = useState<FinderMode>("name");
+  const [schoolQuery, setSchoolQuery] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [answer, setAnswer] = useState({ display: "", raw: "" });
   const [loading, setLoading] = useState(false);
@@ -97,7 +116,7 @@ export default function LoginPage() {
           service: step.service,
           username,
           password,
-          ...(step.service === "pronote" ? { pronoteUrl } : {}),
+          ...(step.service === "pronote" ? { pronoteUrl: school?.url } : {}),
         }),
       });
       const data = await res.json();
@@ -131,10 +150,14 @@ export default function LoginPage() {
     if (step.name === "twofa") {
       setAnswer({ display: "", raw: "" });
       setStep({ name: "credentials", service: step.service });
+    } else if (step.name === "credentials" && step.service === "pronote") {
+      setStep({ name: "school" });
     } else {
       setUsername("");
       setPassword("");
-      setPronoteUrl("");
+      setSchool(null);
+      setSchoolQuery("");
+      setFinderMode("name");
       setStep({ name: "service" });
     }
   };
@@ -151,8 +174,22 @@ export default function LoginPage() {
             <ServiceStep
               onSelect={(service) => {
                 setError(null);
-                setStep({ name: "credentials", service });
+                setStep(service === "pronote" ? { name: "school" } : { name: "credentials", service });
               }}
+            />
+          )}
+
+          {step.name === "school" && (
+            <SchoolStep
+              mode={finderMode}
+              query={schoolQuery}
+              onMode={setFinderMode}
+              onQuery={setSchoolQuery}
+              onPick={(picked) => {
+                setSchool(picked);
+                setStep({ name: "credentials", service: "pronote" });
+              }}
+              onBack={goBack}
             />
           )}
 
@@ -161,13 +198,13 @@ export default function LoginPage() {
               service={step.service}
               username={username}
               password={password}
-              pronoteUrl={pronoteUrl}
+              school={school}
               showPassword={showPassword}
               loading={loading}
               error={error}
               onUsername={setUsername}
               onPassword={setPassword}
-              onPronoteUrl={setPronoteUrl}
+              onChangeSchool={goBack}
               onTogglePassword={() => setShowPassword((v) => !v)}
               onBack={goBack}
               onSubmit={submit}
@@ -201,7 +238,7 @@ function Brand() {
         className="h-9 w-9 rounded-xl flex items-center justify-center"
         style={{ background: "var(--accent)" }}
       >
-        <Papicon name="Butterfly" size={18} color="var(--accent-foreground)" />
+        <Icon name="Logo" size={18} color="var(--accent-foreground)" />
       </div>
       <Typography type="h4">Scoly</Typography>
     </div>
@@ -233,7 +270,7 @@ function ServiceStep({ onSelect }: { onSelect: (s: Service) => void }) {
               <span className="font-semibold">{SERVICES[key].name}</span>
               <span className="text-xs font-normal opacity-60">{SERVICES[key].hint}</span>
             </span>
-            <Papicon name="ChevronRight" size={14} />
+            <Icon name="ChevronRight" size={14} />
           </Button>
         ))}
       </div>
@@ -248,19 +285,367 @@ function ServiceStep({ onSelect }: { onSelect: (s: Service) => void }) {
   );
 }
 
+/* ── Screen 1b — find the Pronote school ──────────────────────────────────── */
+
+function SchoolStep({
+  mode,
+  query,
+  onMode,
+  onQuery,
+  onPick,
+  onBack,
+}: {
+  mode: FinderMode;
+  query: string;
+  onMode: (m: FinderMode) => void;
+  onQuery: (q: string) => void;
+  onPick: (s: PronoteSchool) => void;
+  onBack: () => void;
+}) {
+  return (
+    <>
+      <Heading
+        title="Votre établissement"
+        subtitle="Retrouvez votre établissement pour vous connecter à Pronote."
+      />
+
+      <Tabs
+        selectedKey={mode}
+        onSelectionChange={(key) => onMode(key as FinderMode)}
+        className="w-full flex flex-col gap-5"
+      >
+        <Tabs.ListContainer>
+          <Tabs.List aria-label="Méthode de recherche" className="w-full">
+            <Tabs.Tab id="name" className="flex-1">
+              Par nom
+              <Tabs.Indicator />
+            </Tabs.Tab>
+            <Tabs.Tab id="gps" className="flex-1">
+              Autour de moi
+              <Tabs.Indicator />
+            </Tabs.Tab>
+            <Tabs.Tab id="url" className="flex-1">
+              Par URL
+              <Tabs.Indicator />
+            </Tabs.Tab>
+          </Tabs.List>
+        </Tabs.ListContainer>
+
+        <Tabs.Panel id="name">
+          <NameFinder query={query} onQuery={onQuery} onPick={onPick} />
+        </Tabs.Panel>
+        <Tabs.Panel id="gps">
+          <NearbyFinder onPick={onPick} />
+        </Tabs.Panel>
+        <Tabs.Panel id="url">
+          <UrlFinder onPick={onPick} />
+        </Tabs.Panel>
+      </Tabs>
+
+      <BackLink onPress={onBack} />
+    </>
+  );
+}
+
+function NameFinder({
+  query,
+  onQuery,
+  onPick,
+}: {
+  query: string;
+  onQuery: (q: string) => void;
+  onPick: (s: PronoteSchool) => void;
+}) {
+  const [results, setResults] = useState<DirectorySchool[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [resolving, setResolving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const trimmed = query.trim();
+  const active = trimmed.length >= 3;
+
+  useEffect(() => {
+    if (!active) return;
+    const controller = new AbortController();
+    // Debounced so typing a name doesn't fire a request per keystroke
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await fetch(`/api/pronote/schools?q=${encodeURIComponent(trimmed)}`, {
+          signal: controller.signal,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Recherche impossible");
+        setResults(data);
+        setError(null);
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        setError(err instanceof Error ? err.message : "Recherche impossible");
+      } finally {
+        if (!controller.signal.aborted) setSearching(false);
+      }
+    }, 300);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [active, trimmed]);
+
+  const pick = async (s: DirectorySchool) => {
+    if (resolving) return;
+    setResolving(s.uai);
+    setError(null);
+    try {
+      const res = await fetch(`/api/pronote/resolve?uai=${encodeURIComponent(s.uai)}`);
+      const data = await res.json();
+      if (res.status === 404) {
+        throw new Error(
+          "Aucun espace Pronote trouvé pour cet établissement. Essayez « Autour de moi » ou « Par URL »."
+        );
+      }
+      if (!res.ok) throw new Error(data.error || "Recherche impossible");
+      onPick({ name: s.name, url: data.url });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Recherche impossible");
+      setResolving(null);
+    }
+  };
+
+  const shown = active ? results : null;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <SearchField value={query} onChange={onQuery} aria-label="Rechercher un établissement">
+        <SearchField.Group>
+          <SearchField.SearchIcon />
+          <SearchField.Input placeholder="Ex. Lycée Victor Hugo Nantes" autoFocus />
+          <SearchField.ClearButton />
+        </SearchField.Group>
+      </SearchField>
+
+      {error && <ErrorAlert message={error} />}
+
+      {!active ? (
+        <Typography type="body-xs" color="muted">
+          Collèges et lycées — tapez le nom, la ville ou le code UAI.
+        </Typography>
+      ) : shown === null ? (
+        searching && (
+          <div className="flex items-center gap-2" style={{ color: "var(--muted)" }}>
+            <Spinner color="current" size="sm" />
+            <Typography type="body-xs" color="muted">
+              Recherche…
+            </Typography>
+          </div>
+        )
+      ) : shown.length === 0 ? (
+        <Typography type="body-xs" color="muted">
+          {searching ? "Recherche…" : "Aucun établissement trouvé."}
+        </Typography>
+      ) : (
+        <SchoolList>
+          {shown.map((s) => (
+            <SchoolRow
+              key={s.uai}
+              title={s.name}
+              meta={`${s.city} · ${s.postalCode}`}
+              pending={resolving === s.uai}
+              dim={resolving !== null && resolving !== s.uai}
+              onPress={() => pick(s)}
+            />
+          ))}
+        </SchoolList>
+      )}
+    </div>
+  );
+}
+
+type NearbyState =
+  | { status: "idle" }
+  | { status: "locating" }
+  | { status: "done"; instances: NearbyInstance[] }
+  | { status: "error"; message: string };
+
+function NearbyFinder({ onPick }: { onPick: (s: PronoteSchool) => void }) {
+  const [state, setState] = useState<NearbyState>({ status: "idle" });
+
+  const locate = () => {
+    // Browsers only expose the position on HTTPS (and localhost)
+    if (!window.isSecureContext || !("geolocation" in navigator)) {
+      setState({
+        status: "error",
+        message: "La géolocalisation n'est pas disponible ici. Essayez la recherche par nom.",
+      });
+      return;
+    }
+
+    setState({ status: "locating" });
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const res = await fetch(
+            `/api/pronote/schools?lat=${coords.latitude}&lon=${coords.longitude}`
+          );
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Recherche impossible");
+          setState({ status: "done", instances: data });
+        } catch (err) {
+          setState({
+            status: "error",
+            message: err instanceof Error ? err.message : "Recherche impossible",
+          });
+        }
+      },
+      (err) =>
+        setState({
+          status: "error",
+          message:
+            err.code === err.PERMISSION_DENIED
+              ? "Autorisez l'accès à votre position dans le navigateur pour voir les établissements proches."
+              : "Impossible de déterminer votre position. Réessayez ou cherchez par nom.",
+        }),
+      { timeout: 10_000, maximumAge: 5 * 60_000 }
+    );
+  };
+
+  if (state.status === "done") {
+    return state.instances.length === 0 ? (
+      <Typography type="body-xs" color="muted">
+        Aucun établissement Pronote à proximité.
+      </Typography>
+    ) : (
+      <SchoolList>
+        {state.instances.map((i) => (
+          <SchoolRow
+            key={i.url}
+            title={i.name}
+            meta={`${i.postalCode} · ${formatDistance(i.distance)}`}
+            onPress={() => onPick({ name: i.name, url: i.url })}
+          />
+        ))}
+      </SchoolList>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Button
+        variant="outline"
+        size="lg"
+        fullWidth
+        isPending={state.status === "locating"}
+        onPress={locate}
+      >
+        {({ isPending }) => (
+          <>
+            {isPending ? <Spinner color="current" size="sm" /> : <Icon name="MapPin" size={16} />}
+            {isPending ? "Localisation…" : "Utiliser ma position"}
+          </>
+        )}
+      </Button>
+
+      {state.status === "error" && <ErrorAlert message={state.message} />}
+
+      <Typography type="body-xs" color="muted">
+        Votre position sert uniquement à lister les établissements proches — elle n&apos;est
+        pas conservée.
+      </Typography>
+    </div>
+  );
+}
+
+function UrlFinder({ onPick }: { onPick: (s: PronoteSchool) => void }) {
+  const [url, setUrl] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const parsed = new URL(url.trim());
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") throw new Error();
+      onPick({ name: parsed.host, url: parsed.href });
+    } catch {
+      setError("Adresse invalide — copiez l'URL de la page de connexion Pronote.");
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-5">
+      <Field
+        label="URL Pronote"
+        type="url"
+        value={url}
+        onChange={(v) => {
+          setUrl(v);
+          setError(null);
+        }}
+        placeholder="https://0000000a.index-education.net/pronote/"
+        autoComplete="url"
+        required
+        autoFocus
+      />
+      {error && <ErrorAlert message={error} />}
+      <Submit loading={false} label="Continuer" pending="" />
+    </form>
+  );
+}
+
+function SchoolList({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="max-h-80 overflow-y-auto rounded-xl border border-border">
+      <Rows>{children}</Rows>
+    </div>
+  );
+}
+
+function SchoolRow({
+  title,
+  meta,
+  pending = false,
+  dim = false,
+  onPress,
+}: {
+  title: string;
+  meta: string;
+  pending?: boolean;
+  dim?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <RowItem onPress={onPress} dim={dim}>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-medium truncate">{title}</span>
+        <span className="block text-xs truncate" style={{ color: "var(--muted)" }}>
+          {meta}
+        </span>
+      </span>
+      {pending ? (
+        <Spinner color="current" size="sm" />
+      ) : (
+        <Icon name="ChevronRight" size={13} color="var(--muted)" />
+      )}
+    </RowItem>
+  );
+}
+
+function formatDistance(metres: number): string {
+  if (metres < 1000) return `${Math.max(10, Math.round(metres / 10) * 10)} m`;
+  return `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 }).format(metres / 1000)} km`;
+}
+
 /* ── Screen 2 — credentials ───────────────────────────────────────────────── */
 
 function CredentialsStep({
   service,
   username,
   password,
-  pronoteUrl,
+  school,
   showPassword,
   loading,
   error,
   onUsername,
   onPassword,
-  onPronoteUrl,
+  onChangeSchool,
   onTogglePassword,
   onBack,
   onSubmit,
@@ -268,13 +653,13 @@ function CredentialsStep({
   service: Service;
   username: string;
   password: string;
-  pronoteUrl: string;
+  school: PronoteSchool | null;
   showPassword: boolean;
   loading: boolean;
   error: string | null;
   onUsername: (v: string) => void;
   onPassword: (v: string) => void;
-  onPronoteUrl: (v: string) => void;
+  onChangeSchool: () => void;
   onTogglePassword: () => void;
   onBack: () => void;
   onSubmit: (e: React.FormEvent) => void;
@@ -287,16 +672,24 @@ function CredentialsStep({
       />
 
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
-        {service === "pronote" && (
-          <Field
-            label="URL de l'établissement"
-            type="url"
-            value={pronoteUrl}
-            onChange={onPronoteUrl}
-            placeholder="https://0000000a.index-education.net/pronote/"
-            autoComplete="url"
-            required
-          />
+        {service === "pronote" && school && (
+          <div className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5">
+            <span
+              className="h-8 w-8 shrink-0 rounded-lg flex items-center justify-center"
+              style={{ background: "color-mix(in oklch, var(--accent) 14%, transparent)" }}
+            >
+              <Icon name="GraduationHat" size={16} color="var(--accent)" />
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-sm font-semibold truncate">{school.name}</span>
+              <span className="block text-xs truncate" style={{ color: "var(--muted)" }}>
+                {school.url.replace(/^https?:\/\//, "")}
+              </span>
+            </span>
+            <Button variant="ghost" size="sm" onPress={onChangeSchool}>
+              Changer
+            </Button>
+          </div>
         )}
 
         <Field
@@ -326,7 +719,7 @@ function CredentialsStep({
               aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
               onPress={onTogglePassword}
             >
-              <Papicon name={showPassword ? "Unlock" : "Lock"} size={15} />
+              <Icon name={showPassword ? "Unlock" : "Lock"} size={15} />
             </Button>
           }
         />
@@ -473,7 +866,7 @@ function ErrorAlert({ message }: { message: string }) {
   return (
     <Alert status="danger">
       <Alert.Indicator>
-        <Papicon name="Cross" size={14} />
+        <Icon name="Cross" size={14} />
       </Alert.Indicator>
       <Alert.Content>
         <Alert.Description>{message}</Alert.Description>
@@ -508,7 +901,7 @@ function Submit({
 function BackLink({ onPress }: { onPress: () => void }) {
   return (
     <Button variant="ghost" size="sm" onPress={onPress} className="self-center">
-      <Papicon name="ArrowLeft" size={13} />
+      <Icon name="ArrowLeft" size={13} />
       Retour
     </Button>
   );
@@ -516,37 +909,62 @@ function BackLink({ onPress }: { onPress: () => void }) {
 
 /* ── Right panel ──────────────────────────────────────────────────────────── */
 
+interface ShowcaseContent {
+  logo: string | null;
+  icon: IconName | null;
+  label: string | null;
+  title: string;
+  description: string;
+  features: string[];
+}
+
+function showcaseContent(step: Step): ShowcaseContent {
+  switch (step.name) {
+    case "service":
+      return {
+        logo: null,
+        icon: "Logo",
+        label: null,
+        title: "Votre vie scolaire,\nen mieux.",
+        description:
+          "Notes, emploi du temps, devoirs et actualités — réunis dans une seule interface, rapide et lisible.",
+        features: ["Notes & moyennes", "Emploi du temps", "Devoirs & agenda"],
+      };
+    case "school":
+      return {
+        logo: SERVICES.pronote.logo,
+        icon: null,
+        label: SERVICES.pronote.name,
+        title: "Trouvez votre\nétablissement.",
+        description:
+          "Cherchez-le par son nom ou autour de vous : Scoly retrouve l'adresse de votre espace Pronote.",
+        features: ["Recherche par nom ou ville", "Établissements à proximité", "Adresse Pronote directe"],
+      };
+    case "credentials":
+      return {
+        logo: SERVICES[step.service].logo,
+        icon: null,
+        label: SERVICES[step.service].name,
+        title: `Connecté à\n${SERVICES[step.service].name}.`,
+        description:
+          "Vos données restent chez votre établissement. Scoly ne fait que les afficher, plus clairement.",
+        features: SERVICES[step.service].features,
+      };
+    case "twofa":
+      return {
+        logo: null,
+        icon: "Shield",
+        label: "Sécurité",
+        title: "Double\nauthentification.",
+        description:
+          "Votre établissement protège votre compte avec une vérification en deux étapes.",
+        features: ["Connexion sécurisée", "Protection du compte", "Données chiffrées"],
+      };
+  }
+}
+
 function Showcase({ step }: { step: Step }) {
-  const content =
-    step.name === "service"
-      ? {
-          logo: null,
-          icon: "Butterfly",
-          label: null,
-          title: "Votre vie scolaire,\nen mieux.",
-          description:
-            "Notes, emploi du temps, devoirs et actualités — réunis dans une seule interface, rapide et lisible.",
-          features: ["Notes & moyennes", "Emploi du temps", "Devoirs & agenda"],
-        }
-      : step.name === "credentials"
-        ? {
-            logo: SERVICES[step.service].logo,
-            icon: null,
-            label: SERVICES[step.service].name,
-            title: `Connecté à\n${SERVICES[step.service].name}.`,
-            description:
-              "Vos données restent chez votre établissement. Scoly ne fait que les afficher, plus clairement.",
-            features: SERVICES[step.service].features,
-          }
-        : {
-            logo: null,
-            icon: "Shield",
-            label: "Sécurité",
-            title: "Double\nauthentification.",
-            description:
-              "Votre établissement protège votre compte avec une vérification en deux étapes.",
-            features: ["Connexion sécurisée", "Protection du compte", "Données chiffrées"],
-          };
+  const content = showcaseContent(step);
 
   return (
     <div
@@ -573,7 +991,7 @@ function Showcase({ step }: { step: Step }) {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={content.logo} alt="" className="h-11 w-11 object-contain" />
           ) : (
-            <Papicon name={content.icon!} size={34} color="var(--accent)" />
+            <Icon name={content.icon!} size={34} color="var(--accent)" />
           )}
         </div>
 
@@ -605,7 +1023,7 @@ function Showcase({ step }: { step: Step }) {
                 className="h-5 w-5 rounded-full flex items-center justify-center shrink-0"
                 style={{ background: "color-mix(in oklch, var(--accent) 25%, transparent)" }}
               >
-                <Papicon name="Check" size={10} color="var(--accent)" />
+                <Icon name="Check" size={10} color="var(--accent)" />
               </span>
               <span className="text-sm font-medium" style={{ color: "oklch(85% 0.01 265)" }}>
                 {feature}

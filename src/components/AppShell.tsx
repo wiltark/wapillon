@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import Sidebar, { SidebarProvider } from "./Sidebar";
 import MobileNav from "./MobileNav";
-import Papicon from "./Papicon";
+import Icon from "./Icon";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
@@ -23,7 +23,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Papicon name="Butterfly" size={32} className="animate-pulse text-accent" />
+        <Icon name="Logo" size={32} className="animate-pulse text-accent" />
       </div>
     );
   }

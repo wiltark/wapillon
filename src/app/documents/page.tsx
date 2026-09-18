@@ -1,7 +1,7 @@
 "use client";
 
 import Header from "@/components/Header";
-import Papicon from "@/components/Papicon";
+import Icon from "@/components/Icon";
 import { Empty, LoadingPanel, Panel, RowItem, Rows } from "@/components/ui";
 import { useApiData } from "@/lib/auth-context";
 import type { SchoolDocument } from "@/lib/services/ecoledirecte";
@@ -56,7 +56,7 @@ export default function DocumentsPage() {
               <Rows>
                 {groups[category].map((doc) => (
                   <RowItem key={doc.id} accent="var(--accent)">
-                    <Papicon name="Document" size={14} color="var(--accent)" />
+                    <Icon name="Document" size={14} color="var(--accent)" />
                     <span className="flex-1 min-w-0">
                       <span className="block truncate text-[13px] font-medium">{doc.name}</span>
                       {doc.date && (
@@ -71,7 +71,7 @@ export default function DocumentsPage() {
                       aria-label={`Télécharger ${doc.name}`}
                       className="shrink-0 transition-opacity hover:opacity-60"
                     >
-                      <Papicon name="Download" size={14} color="var(--muted)" />
+                      <Icon name="Download" size={14} color="var(--muted)" />
                     </a>
                   </RowItem>
                 ))}
