@@ -33,11 +33,13 @@ async function handler(req: NextRequest): Promise<NextResponse> {
     }
 
     const folderParam = req.nextUrl.searchParams.get("folder");
+    const yearParam = req.nextUrl.searchParams.get("year") ?? "";
     const { messages, folders, newToken } = await getEDMessages(
       session.edToken,
       accountId,
       role,
-      folderParam ? Number(folderParam) : undefined
+      folderParam ? Number(folderParam) : undefined,
+      yearParam
     );
     session.edToken = newToken;
     return NextResponse.json({ messages, folders });

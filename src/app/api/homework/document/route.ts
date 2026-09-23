@@ -9,7 +9,7 @@ const FILE_TYPES = ["DEVOIRS", "FICHIER", "CLOUD"];
 async function fetchFromED(fileId: string, token: string): Promise<Response | null> {
   for (const type of FILE_TYPES) {
     const res = await fetch(
-      `${BASE_URL}/telechargement.awp?verbe=get&fichierId=${fileId}&leTypeDeFichier=${type}`,
+      `${BASE_URL}/telechargement.awp?verbe=get&fichierId=${encodeURIComponent(fileId)}&leTypeDeFichier=${type}`,
       {
         method: "POST",
         headers: {
@@ -49,10 +49,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const contentType = edRes.headers.get("content-type") || "application/octet-stream";
     const isVideo = contentType.startsWith("video/");
-    const isMedia = contentType.startsWith("image/") || isVideo;
+    const isMedia = contentType.startsWith("image/") || isVideo || contentType === "application/pdf";
+    // The viewer asks for an inline render explicitly; without it, ED's own
+    // disposition (or our attachment fallback) drives a plain download.
+    const forceInline = req.nextUrl.searchParams.get("view") === "1";
     const edDisposition = edRes.headers.get("content-disposition") || "";
-    const disposition = edDisposition ||
-      (isMedia ? `inline; filename="${fileName}"` : `attachment; filename="${fileName}"`);
+    const disposition =
+      forceInline || isMedia
+        ? `inline; filename="${fileName}"`
+        : edDisposition || `attachment; filename="${fileName}"`;
 
     const fullBuffer = await edRes.arrayBuffer();
     const total = fullBuffer.byteLength;

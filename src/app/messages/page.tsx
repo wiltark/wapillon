@@ -12,8 +12,28 @@ interface Inbox {
   folders: MessageFolder[];
 }
 
+/**
+ * École Directe's school years, as the "millésime" it expects: the year a
+ * year starts in, e.g. "2024" for 2024-2025. Current year first, then back
+ * three — ED rarely keeps mailboxes further back than that.
+ */
+function schoolYearOptions(): { value: string; label: string }[] {
+  const now = new Date();
+  // Before July, we're still in the school year that started last calendar year.
+  const currentStart = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+  return Array.from({ length: 4 }, (_, i) => {
+    const start = currentStart - i;
+    return { value: String(start), label: `${start}-${start + 1}` };
+  });
+}
+
 export default function MessagesPage() {
-  const { data, loading } = useApiData<Inbox>("/api/messages", { messages: [], folders: [] });
+  const years = schoolYearOptions();
+  const [year, setYear] = useState("");
+  const { data, loading } = useApiData<Inbox>(
+    `/api/messages${year ? `?year=${year}` : ""}`,
+    { messages: [], folders: [] }
+  );
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [bodies, setBodies] = useState<Record<string, MessageEntry>>({});
@@ -102,6 +122,23 @@ export default function MessagesPage() {
               <FilterChip active={unreadOnly} onPress={() => setUnreadOnly(true)}>
                 Non lus {unread > 0 && `(${unread})`}
               </FilterChip>
+              <select
+                value={year}
+                onChange={(e) => {
+                  setYear(e.target.value);
+                  setSelectedId(null);
+                }}
+                aria-label="Année scolaire"
+                className="ml-auto rounded-lg px-2 py-1 text-[11px] font-semibold outline-none"
+                style={{ background: "var(--surface-secondary)", color: "var(--muted)" }}
+              >
+                <option value="">Année en cours</option>
+                {years.map((y) => (
+                  <option key={y.value} value={y.value}>
+                    {y.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

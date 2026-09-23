@@ -58,6 +58,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { name: "Actualités", href: "/news", icon: "Newspaper" },
       { name: "Vie de la classe", href: "/school", icon: "Info", module: "VIE_DE_LA_CLASSE" },
       { name: "Documents", href: "/documents", icon: "Document", module: "DOCUMENTS_ELEVE" },
+      { name: "Cloud", href: "/cloud", icon: "Folder", module: "CLOUD" },
       { name: "Menus", href: "/menu", icon: "Cutlery", module: "CANTINE_BARCODE" },
       {
         name: "Facturation",

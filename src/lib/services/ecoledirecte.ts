@@ -649,7 +649,9 @@ export async function getEDMessages(
   token: string,
   accountId: number,
   role: AccountRole = "student",
-  folderId?: number
+  folderId?: number,
+  /** School year the mailbox should read from, e.g. "2024" for 2024-2025. Empty string means "current". */
+  year = ""
 ): Promise<{ messages: MessageEntry[]; folders: MessageFolder[]; newToken: string }> {
   const query = new URLSearchParams({ verbe: "get", orderBy: "date", order: "desc" });
   if (folderId != null) query.set("idClasseur", String(folderId));
@@ -660,7 +662,7 @@ export async function getEDMessages(
     ({ data, token: newToken } = await edFetch(
       `${messagesPath(role, accountId)}?${query.toString()}`,
       token,
-      { anneeMessages: "" },
+      { anneeMessages: year },
       role
     ));
   } catch {
@@ -1020,4 +1022,102 @@ export async function getEDMenus(
   }
 
   return { menus, newToken };
+}
+
+/* ── Personal cloud (MonCloud) ────────────────────────────────────────────── */
+
+export interface CloudItem {
+  /** ED's own path-shaped id, e.g. `\\CLOUD26\cloud\0442071M\E\912\file.pdf`. */
+  id: string;
+  name: string;
+  kind: "folder" | "file";
+  date?: string;
+  /** Bytes — a folder's own size is the sum of what it contains. */
+  size?: number;
+  isTrash?: boolean;
+  /** Present on folders; recursively nested, already parsed. */
+  children?: CloudItem[];
+}
+
+function parseCloudNode(node: Record<string, unknown>): CloudItem | null {
+  if (typeof node?.id !== "string") return null;
+  const kind: CloudItem["kind"] = node.type === "folder" ? "folder" : "file";
+  const rawChildren = Array.isArray(node.children) ? (node.children as Record<string, unknown>[]) : [];
+  return {
+    id: node.id,
+    name: String(node.libelle || "Sans nom"),
+    kind,
+    date: node.date ? String(node.date) : undefined,
+    size: typeof node.taille === "number" ? node.taille : undefined,
+    isTrash: Boolean(node.isTrash),
+    children:
+      kind === "folder"
+        ? rawChildren.map(parseCloudNode).filter((c): c is CloudItem => c !== null)
+        : undefined,
+  };
+}
+
+/**
+ * Fetches the account's whole personal cloud storage as one tree — ED returns
+ * the entire "MonCloud" hierarchy (including the CORBEILLE/trash folder) from
+ * a single call, there is no per-folder pagination.
+ */
+export async function getEDCloud(
+  token: string,
+  accountId: number
+): Promise<{ root: CloudItem | null; newToken: string }> {
+  let data: unknown;
+  let newToken = token;
+  try {
+    ({ data, token: newToken } = await edFetch(`/cloud/E/${accountId}.awp?verbe=get&v=4.102.0`, token));
+  } catch {
+    return { root: null, newToken: token };
+  }
+
+  const list = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
+  const root = list.length > 0 ? parseCloudNode(list[0]) : null;
+  return { root, newToken };
+}
+
+/**
+ * Uploads a file into the account's personal cloud storage, into `folderId`
+ * (the root folder's own id, or a subfolder's).
+ *
+ * NOTE: this endpoint/shape is inferred from `getEDCloud`'s sibling GET
+ * (`/cloud/E/{id}.awp`) and ED's `verbe=get`/`verbe=post` convention on the
+ * same path — it has not been confirmed against a captured upload request yet.
+ */
+export async function uploadEDCloudFile(
+  token: string,
+  accountId: number,
+  folderId: string,
+  file: { name: string; type: string; buffer: ArrayBuffer }
+): Promise<{ newToken: string }> {
+  const form = new FormData();
+  form.append("dossierId", folderId);
+  form.append("file", new Blob([file.buffer], { type: file.type }), file.name);
+
+  const res = await fetch(`${HOSTS.default}/cloud/E/${accountId}.awp?verbe=post&v=4.102.0`, {
+    method: "POST",
+    headers: { "X-Token": token, "User-Agent": USER_AGENT },
+    body: form,
+  });
+
+  const text = await res.text();
+  if (!text || !text.trim()) {
+    throw new Error("ED API returned empty response for cloud upload");
+  }
+
+  let json: { code?: number; message?: string; token?: string };
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error("ED API returned invalid JSON for cloud upload");
+  }
+
+  if (json.code !== 200) {
+    throw new Error(json.message || `ED API Error (${json.code})`);
+  }
+
+  return { newToken: json.token || token };
 }
